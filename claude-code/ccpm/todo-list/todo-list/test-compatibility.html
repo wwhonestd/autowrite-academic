@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Browser Compatibility Tests - Todo App</title>
+    <link rel="stylesheet" href="styles-optimized.css">
+    <style>
+        .test-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+            font-family: monospace;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .test-section h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        .test-result {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 4px 0;
+            padding: 2px 0;
+        }
+        .status-pass { color: #28a745; }
+        .status-fail { color: #dc3545; }
+        .status-warning { color: #ffc107; }
+        .test-controls {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .test-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 3px;
+            font-size: 11px;
+        }
+        .test-btn:hover { background: #0056b3; }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 8px;
+            font-size: 11px;
+        }
+        .minimize-btn {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: #666;
+        }
+        .test-panel.minimized {
+            height: 40px;
+            overflow: hidden;
+        }
+        .test-panel.minimized .test-content {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-panel" id="test-panel">
+        <button class="minimize-btn" onclick="togglePanel()">−</button>
+        <h2>Browser Compatibility</h2>
+        <div class="test-content">
+            <div class="test-controls">
+                <button class="test-btn" onclick="runCompatibilityTests()">Run Tests</button>
+                <button class="test-btn" onclick="runFeatureTests()">Features</button>
+                <button class="test-btn" onclick="clearResults()">Clear</button>
+            </div>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="container">
+        <header class="app-header">
+            <h1>My Todo List - Compatibility Testing</h1>
+            <p>Cross-browser compatibility testing environment</p>
+        </header>
+
+        <main class="app-main" id="main-content">
+            <section class="todo-input-section">
+                <form class="todo-form" id="todo-form" aria-label="Add new todo">
+                    <div class="input-group">
+                        <label for="todo-input" class="sr-only">New todo item</label>
+                        <input type="text" id="todo-input" class="todo-input" placeholder="What needs to be done?" required aria-describedby="todo-input-help">
+                        <button type="submit" class="add-btn" aria-label="Add todo">
+                            <span aria-hidden="true">+</span>
+                            <span class="sr-only">Add</span>
+                        </button>
+                    </div>
+                    <div id="todo-input-help" class="input-help">Press Enter or click + to add a new task</div>
+                </form>
+            </section>
+
+            <section class="todo-list-section">
+                <div class="todo-controls">
+                    <div class="filter-controls">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="active">Active</button>
+                        <button class="filter-btn" data-filter="completed">Completed</button>
+                    </div>
+                    <div class="todo-stats">
+                        <span id="todo-count">0 items left</span>
+                    </div>
+                </div>
+                <ul class="todo-list" id="todo-list" aria-label="Todo items"></ul>
+                <div class="bulk-actions">
+                    <button class="bulk-action-btn" id="clear-completed" disabled>Clear Completed</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script-optimized.js"></script>
+    <script>
+        // Browser compatibility testing utilities
+        class BrowserTester {
+            constructor() {
+                this.results = {};
+                this.userAgent = navigator.userAgent;
+                this.browserInfo = this.detectBrowser();
+            }
+
+            // Detect browser information
+            detectBrowser() {
+                const ua = this.userAgent;
+                let browser = 'Unknown';
+                let version = 'Unknown';
+                let engine = 'Unknown';
+
+                // Chrome
+                if (ua.includes('Chrome') && !ua.includes('Edg')) {
+                    browser = 'Chrome';
+                    version = ua.match(/Chrome\/(\d+)/)?.[1] || 'Unknown';
+                    engine = 'Blink';
+                }
+                // Edge
+                else if (ua.includes('Edg')) {
+                    browser = 'Edge';
+                    version = ua.match(/Edg\/(\d+)/)?.[1] || 'Unknown';
+                    engine = 'Blink';
+                }
+                // Firefox
+                else if (ua.includes('Firefox')) {
+                    browser = 'Firefox';
+                    version = ua.match(/Firefox\/(\d+)/)?.[1] || 'Unknown';
+                    engine = 'Gecko';
+                }
+                // Safari
+                else if (ua.includes('Safari') && !ua.includes('Chrome')) {
+                    browser = 'Safari';
+                    version = ua.match(/Version\/(\d+)/)?.[1] || 'Unknown';
+                    engine = 'WebKit';
+                }
+
+                return { browser, version, engine };
+            }
+
+            // Test modern JavaScript features
+            testJavaScriptFeatures() {
+                const tests = [
+                    {
+                        name: 'ES6 Classes',
+                        test: () => typeof class {} === 'function'
+                    },
+                    {
+                        name: 'Arrow Functions', 
+                        test: () => {
+                            try {
+                                eval('(() => {})');
+                                return true;
+                            } catch (e) { return false; }
+                        }
+                    },
+                    {
+                        name: 'Template Literals',
+                        test: () => {
+                            try {
+                                eval('`test ${1}`');
+                                return true;
+                            } catch (e) { return false; }
+                        }
+                    },
+                    {
+                        name: 'Destructuring',
+                        test: () => {
+                            try {
+                                eval('const {a} = {a: 1}');
+                                return true;
+                            } catch (e) { return false; }
+                        }
+                    },
+                    {
+                        name: 'Promises',
+                        test: () => typeof Promise !== 'undefined'
+                    },
+                    {
+                        name: 'Map/Set',
+                        test: () => typeof Map !== 'undefined' && typeof Set !== 'undefined'
+                    },
+                    {
+                        name: 'Array.from',
+                        test: () => typeof Array.from === 'function'
+                    },
+                    {
+                        name: 'requestAnimationFrame',
+                        test: () => typeof requestAnimationFrame === 'function'
+                    }
+                ];
+
+                const results = {};
+                tests.forEach(({ name, test }) => {
+                    try {
+                        results[name] = test();
+                    } catch (e) {
+                        results[name] = false;
+                    }
+                });
+
+                return results;
+            }
+
+            // Test CSS features
+            testCSSFeatures() {
+                const tests = [
+                    {
+                        name: 'CSS Grid',
+                        test: () => CSS.supports('display', 'grid')
+                    },
+                    {
+                        name: 'Flexbox',
+                        test: () => CSS.supports('display', 'flex')
+                    },
+                    {
+                        name: 'CSS Variables',
+                        test: () => CSS.supports('color', 'var(--test)')
+                    },
+                    {
+                        name: 'CSS Transforms',
+                        test: () => CSS.supports('transform', 'translateX(10px)')
+                    },
+                    {
+                        name: 'CSS Transitions',
+                        test: () => CSS.supports('transition', 'all 0.3s')
+                    },
+                    {
+                        name: 'Border Radius',
+                        test: () => CSS.supports('border-radius', '5px')
+                    },
+                    {
+                        name: 'Box Shadow',
+                        test: () => CSS.supports('box-shadow', '0 0 5px rgba(0,0,0,0.1)')
+                    }
+                ];
+
+                const results = {};
+                tests.forEach(({ name, test }) => {
+                    try {
+                        results[name] = typeof CSS !== 'undefined' ? test() : false;
+                    } catch (e) {
+                        results[name] = false;
+                    }
+                });
+
+                return results;
+            }
+
+            // Test DOM API features
+            testDOMFeatures() {
+                const tests = [
+                    {
+                        name: 'localStorage',
+                        test: () => typeof localStorage !== 'undefined'
+                    },
+                    {
+                        name: 'addEventListener',
+                        test: () => typeof document.addEventListener === 'function'
+                    },
+                    {
+                        name: 'querySelector',
+                        test: () => typeof document.querySelector === 'function'
+                    },
+                    {
+                        name: 'classList',
+                        test: () => 'classList' in document.createElement('div')
+                    },
+                    {
+                        name: 'dataset',
+                        test: () => 'dataset' in document.createElement('div')
+                    },
+                    {
+                        name: 'FormData',
+                        test: () => typeof FormData !== 'undefined'
+                    }
+                ];
+
+                const results = {};
+                tests.forEach(({ name, test }) => {
+                    try {
+                        results[name] = test();
+                    } catch (e) {
+                        results[name] = false;
+                    }
+                });
+
+                return results;
+            }
+
+            // Test performance APIs
+            testPerformanceAPIs() {
+                const tests = [
+                    {
+                        name: 'performance.now',
+                        test: () => typeof performance !== 'undefined' && typeof performance.now === 'function'
+                    },
+                    {
+                        name: 'performance.timing',
+                        test: () => typeof performance !== 'undefined' && performance.timing
+                    },
+                    {
+                        name: 'performance.memory',
+                        test: () => typeof performance !== 'undefined' && performance.memory
+                    }
+                ];
+
+                const results = {};
+                tests.forEach(({ name, test }) => {
+                    try {
+                        results[name] = test();
+                    } catch (e) {
+                        results[name] = false;
+                    }
+                });
+
+                return results;
+            }
+
+            // Test app-specific functionality
+            testAppFunctionality() {
+                const tests = [
+                    {
+                        name: 'Todo App Initialized',
+                        test: () => typeof window.todoApp !== 'undefined'
+                    },
+                    {
+                        name: 'Add Todo Works',
+                        test: () => {
+                            if (!window.todoApp) return false;
+                            try {
+                                const initialCount = window.todoApp.getTodos().length;
+                                window.todoApp.addTodo('Test compatibility');
+                                const newCount = window.todoApp.getTodos().length;
+                                return newCount === initialCount + 1;
+                            } catch (e) {
+                                return false;
+                            }
+                        }
+                    },
+                    {
+                        name: 'Toggle Todo Works',
+                        test: () => {
+                            if (!window.todoApp) return false;
+                            try {
+                                const todos = window.todoApp.getTodos();
+                                if (todos.length === 0) return false;
+                                
+                                const todo = todos[0];
+                                const initialState = todo.completed;
+                                window.todoApp.toggleTodo(todo.id);
+                                return todo.completed !== initialState;
+                            } catch (e) {
+                                return false;
+                            }
+                        }
+                    },
+                    {
+                        name: 'Filter Works',
+                        test: () => {
+                            if (!window.todoApp) return false;
+                            try {
+                                window.todoApp.setFilter('active');
+                                window.todoApp.setFilter('completed');
+                                window.todoApp.setFilter('all');
+                                return true;
+                            } catch (e) {
+                                return false;
+                            }
+                        }
+                    }
+                ];
+
+                const results = {};
+                tests.forEach(({ name, test }) => {
+                    try {
+                        results[name] = test();
+                    } catch (e) {
+                        results[name] = false;
+                    }
+                });
+
+                return results;
+            }
+
+            // Generate compatibility report
+            generateReport() {
+                return {
+                    browser: this.browserInfo,
+                    javascript: this.testJavaScriptFeatures(),
+                    css: this.testCSSFeatures(),
+                    dom: this.testDOMFeatures(),
+                    performance: this.testPerformanceAPIs(),
+                    app: this.testAppFunctionality(),
+                    timestamp: new Date().toISOString()
+                };
+            }
+        }
+
+        // Global browser tester instance
+        const browserTester = new BrowserTester();
+
+        // Run compatibility tests
+        function runCompatibilityTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-section"><h3>Running compatibility tests...</h3></div>';
+
+            setTimeout(() => {
+                const report = browserTester.generateReport();
+                displayCompatibilityResults(report);
+            }, 100);
+        }
+
+        // Run feature detection tests
+        function runFeatureTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-section"><h3>Running feature detection...</h3></div>';
+
+            setTimeout(() => {
+                const report = browserTester.generateReport();
+                displayFeatureResults(report);
+            }, 100);
+        }
+
+        // Display compatibility results
+        function displayCompatibilityResults(report) {
+            const resultsDiv = document.getElementById('results');
+            let html = '';
+
+            // Browser info
+            html += '<div class="test-section"><h3>🌐 Browser Info</h3>';
+            html += `<div class="test-result"><span>Browser:</span><span>${report.browser.browser} ${report.browser.version}</span></div>`;
+            html += `<div class="test-result"><span>Engine:</span><span>${report.browser.engine}</span></div>`;
+            html += '</div>';
+
+            // JavaScript compatibility
+            const jsResults = report.javascript;
+            const jsPass = Object.values(jsResults).filter(v => v).length;
+            const jsTotal = Object.keys(jsResults).length;
+            html += `<div class="test-section"><h3>📜 JavaScript (${jsPass}/${jsTotal})</h3>`;
+            Object.entries(jsResults).forEach(([feature, supported]) => {
+                const status = supported ? 'status-pass' : 'status-fail';
+                const icon = supported ? '✅' : '❌';
+                html += `<div class="test-result ${status}"><span>${feature}</span><span>${icon}</span></div>`;
+            });
+            html += '</div>';
+
+            // CSS compatibility
+            const cssResults = report.css;
+            const cssPass = Object.values(cssResults).filter(v => v).length;
+            const cssTotal = Object.keys(cssResults).length;
+            html += `<div class="test-section"><h3>🎨 CSS (${cssPass}/${cssTotal})</h3>`;
+            Object.entries(cssResults).forEach(([feature, supported]) => {
+                const status = supported ? 'status-pass' : 'status-fail';
+                const icon = supported ? '✅' : '❌';
+                html += `<div class="test-result ${status}"><span>${feature}</span><span>${icon}</span></div>`;
+            });
+            html += '</div>';
+
+            // App functionality
+            const appResults = report.app;
+            const appPass = Object.values(appResults).filter(v => v).length;
+            const appTotal = Object.keys(appResults).length;
+            html += `<div class="test-section"><h3>📝 App Functions (${appPass}/${appTotal})</h3>`;
+            Object.entries(appResults).forEach(([feature, working]) => {
+                const status = working ? 'status-pass' : 'status-fail';
+                const icon = working ? '✅' : '❌';
+                html += `<div class="test-result ${status}"><span>${feature}</span><span>${icon}</span></div>`;
+            });
+            html += '</div>';
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Display feature results
+        function displayFeatureResults(report) {
+            const resultsDiv = document.getElementById('results');
+            let html = '';
+
+            // Overall compatibility score
+            const allFeatures = {...report.javascript, ...report.css, ...report.dom, ...report.app};
+            const supportedFeatures = Object.values(allFeatures).filter(v => v).length;
+            const totalFeatures = Object.keys(allFeatures).length;
+            const compatibilityScore = Math.round((supportedFeatures / totalFeatures) * 100);
+
+            html += '<div class="test-section"><h3>📊 Compatibility Score</h3>';
+            html += `<div class="test-result"><span>Overall Score:</span><span class="${compatibilityScore >= 90 ? 'status-pass' : compatibilityScore >= 75 ? 'status-warning' : 'status-fail'}">${compatibilityScore}%</span></div>`;
+            html += `<div class="test-result"><span>Supported:</span><span>${supportedFeatures}/${totalFeatures}</span></div>`;
+            html += '</div>';
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Clear results
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Toggle panel visibility
+        function togglePanel() {
+            const panel = document.getElementById('test-panel');
+            const btn = panel.querySelector('.minimize-btn');
+            panel.classList.toggle('minimized');
+            btn.textContent = panel.classList.contains('minimized') ? '+' : '−';
+        }
+
+        // Auto-run compatibility test on load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(runCompatibilityTests, 1000);
+        });
+    </script>
+</body>
+</html>
