@@ -8,7 +8,11 @@ class TodoApp {
         // Application state
         this.todos = [];
         this.currentFilter = 'all';
-        this.nextId = 1;
+        
+        // Constants for data validation
+        this.STORAGE_KEY = 'todos';
+        this.MIN_TEXT_LENGTH = 1;
+        this.MAX_TEXT_LENGTH = 500;
         
         // DOM elements
         this.elements = {};
@@ -87,9 +91,26 @@ class TodoApp {
 
         // Handle storage changes from other tabs
         window.addEventListener('storage', (e) => {
-            if (e.key === 'todos') {
+            if (e.key === this.STORAGE_KEY) {
                 this.loadTodos();
                 this.render();
+            }
+        });
+
+        // Delegate todo item interactions
+        this.elements.todoList.addEventListener('change', (e) => {
+            if (e.target.matches('.todo-checkbox')) {
+                const todoItem = e.target.closest('.todo-item');
+                const todoId = todoItem.dataset.id;
+                this.handleToggleTodo(todoId);
+            }
+        });
+
+        this.elements.todoList.addEventListener('click', (e) => {
+            if (e.target.matches('.todo-delete') || e.target.closest('.todo-delete')) {
+                const todoItem = e.target.closest('.todo-item');
+                const todoId = todoItem.dataset.id;
+                this.handleDeleteTodo(todoId);
             }
         });
     }
@@ -106,12 +127,21 @@ class TodoApp {
                 return;
             }
 
+            // Validate text length
+            if (text.length > this.MAX_TEXT_LENGTH) {
+                this.showMessage(`Todo text cannot exceed ${this.MAX_TEXT_LENGTH} characters`, 'warning');
+                return;
+            }
+
             const todo = {
-                id: this.nextId++,
+                id: this.generateId(),
                 text: text,
                 completed: false,
-                createdAt: new Date().toISOString()
+                created: new Date().toISOString()
             };
+
+            // Validate the todo before adding
+            this.validateTodo(todo);
 
             this.todos.unshift(todo);
             this.elements.todoInput.value = '';
@@ -165,6 +195,59 @@ class TodoApp {
     }
 
     /**
+     * Handle toggling a todo's completion status
+     */
+    handleToggleTodo(todoId) {
+        try {
+            const todoIndex = this.todos.findIndex(todo => todo.id === todoId);
+            
+            if (todoIndex === -1) {
+                throw new Error(`Todo not found: ${todoId}`);
+            }
+
+            const todo = this.todos[todoIndex];
+            const wasCompleted = todo.completed;
+            
+            // Toggle completion status
+            todo.completed = !todo.completed;
+            
+            this.saveTodos();
+            this.render();
+            
+            const status = todo.completed ? 'completed' : 'uncompleted';
+            this.showMessage(`Todo "${todo.text}" marked as ${status}`, 'success');
+        } catch (error) {
+            this.handleError('Failed to toggle todo', error);
+        }
+    }
+
+    /**
+     * Handle deleting a todo
+     */
+    handleDeleteTodo(todoId) {
+        try {
+            const todoIndex = this.todos.findIndex(todo => todo.id === todoId);
+            
+            if (todoIndex === -1) {
+                throw new Error(`Todo not found: ${todoId}`);
+            }
+
+            const todo = this.todos[todoIndex];
+            const todoText = todo.text;
+            
+            // Remove todo from array
+            this.todos.splice(todoIndex, 1);
+            
+            this.saveTodos();
+            this.render();
+            
+            this.showMessage(`Deleted: "${todoText}"`, 'success');
+        } catch (error) {
+            this.handleError('Failed to delete todo', error);
+        }
+    }
+
+    /**
      * Handle keyboard shortcuts
      */
     handleKeyboardShortcuts(e) {
@@ -184,6 +267,162 @@ class TodoApp {
             this.handleError('Keyboard shortcut failed', error);
         }
     }
+
+    // ===== CRUD OPERATIONS =====
+
+    /**
+     * Create a new todo and add it to storage
+     */
+    addTodo(text) {
+        if (typeof text !== 'string' || !text.trim()) {
+            throw new Error('Todo text must be a non-empty string');
+        }
+
+        const trimmedText = text.trim();
+        if (trimmedText.length > this.MAX_TEXT_LENGTH) {
+            throw new Error(`Todo text cannot exceed ${this.MAX_TEXT_LENGTH} characters`);
+        }
+
+        const todo = {
+            id: this.generateId(),
+            text: trimmedText,
+            completed: false,
+            created: new Date().toISOString()
+        };
+
+        this.validateTodo(todo);
+        this.todos.unshift(todo);
+        this.saveTodos();
+
+        return todo;
+    }
+
+    /**
+     * Update an existing todo
+     */
+    updateTodo(todoId, updates) {
+        if (!todoId) {
+            throw new Error('Todo ID is required');
+        }
+
+        if (!updates || typeof updates !== 'object') {
+            throw new Error('Updates must be an object');
+        }
+
+        const todoIndex = this.todos.findIndex(todo => todo.id === todoId);
+        if (todoIndex === -1) {
+            throw new Error(`Todo not found: ${todoId}`);
+        }
+
+        const todo = { ...this.todos[todoIndex] };
+
+        // Apply updates
+        if ('text' in updates) {
+            if (typeof updates.text !== 'string') {
+                throw new Error('Todo text must be a string');
+            }
+            const trimmedText = updates.text.trim();
+            if (trimmedText.length === 0) {
+                throw new Error('Todo text cannot be empty');
+            }
+            if (trimmedText.length > this.MAX_TEXT_LENGTH) {
+                throw new Error(`Todo text cannot exceed ${this.MAX_TEXT_LENGTH} characters`);
+            }
+            todo.text = trimmedText;
+        }
+
+        if ('completed' in updates) {
+            if (typeof updates.completed !== 'boolean') {
+                throw new Error('Todo completed must be a boolean');
+            }
+            todo.completed = updates.completed;
+        }
+
+        // Validate updated todo
+        this.validateTodo(todo);
+
+        // Update in array
+        this.todos[todoIndex] = todo;
+        this.saveTodos();
+
+        return todo;
+    }
+
+    /**
+     * Delete a todo
+     */
+    deleteTodo(todoId) {
+        if (!todoId) {
+            throw new Error('Todo ID is required');
+        }
+
+        const todoIndex = this.todos.findIndex(todo => todo.id === todoId);
+        if (todoIndex === -1) {
+            throw new Error(`Todo not found: ${todoId}`);
+        }
+
+        const todo = this.todos[todoIndex];
+        this.todos.splice(todoIndex, 1);
+        this.saveTodos();
+
+        return todo;
+    }
+
+    /**
+     * Toggle a todo's completion status
+     */
+    toggleTodo(todoId) {
+        if (!todoId) {
+            throw new Error('Todo ID is required');
+        }
+
+        const todoIndex = this.todos.findIndex(todo => todo.id === todoId);
+        if (todoIndex === -1) {
+            throw new Error(`Todo not found: ${todoId}`);
+        }
+
+        const todo = this.todos[todoIndex];
+        todo.completed = !todo.completed;
+        this.saveTodos();
+
+        return todo;
+    }
+
+    /**
+     * Get all todos (read operation)
+     */
+    getTodos() {
+        // Return a deep copy to prevent external modification
+        return JSON.parse(JSON.stringify(this.todos));
+    }
+
+    /**
+     * Get a todo by ID
+     */
+    getTodo(todoId) {
+        if (!todoId) {
+            throw new Error('Todo ID is required');
+        }
+
+        const todo = this.todos.find(todo => todo.id === todoId);
+        if (!todo) {
+            throw new Error(`Todo not found: ${todoId}`);
+        }
+
+        // Return a deep copy to prevent external modification
+        return JSON.parse(JSON.stringify(todo));
+    }
+
+    /**
+     * Clear all todos (primarily for testing/reset purposes)
+     */
+    clearAllTodos() {
+        this.todos = [];
+        this.saveTodos();
+        return true;
+    }
+
+    // ===== UI METHODS =====
 
     /**
      * Get filtered todos based on current filter
@@ -296,37 +535,267 @@ class TodoApp {
     }
 
     /**
-     * Save todos to localStorage
+     * Generate unique timestamp-based ID
      */
-    saveTodos() {
+    generateId() {
+        return `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    /**
+     * Validate todo data structure
+     */
+    validateTodo(todo) {
+        if (!todo || typeof todo !== 'object') {
+            throw new Error('Todo must be an object');
+        }
+
+        if (typeof todo.id !== 'string' || !todo.id.trim()) {
+            throw new Error('Todo must have a valid string ID');
+        }
+
+        if (typeof todo.text !== 'string') {
+            throw new Error('Todo text must be a string');
+        }
+
+        const text = todo.text.trim();
+        if (text.length < this.MIN_TEXT_LENGTH) {
+            throw new Error('Todo text cannot be empty');
+        }
+
+        if (text.length > this.MAX_TEXT_LENGTH) {
+            throw new Error(`Todo text cannot exceed ${this.MAX_TEXT_LENGTH} characters`);
+        }
+
+        if (typeof todo.completed !== 'boolean') {
+            throw new Error('Todo completed must be a boolean');
+        }
+
+        if (typeof todo.created !== 'string' || !this.isValidISOString(todo.created)) {
+            throw new Error('Todo must have a valid ISO timestamp for created field');
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate ISO timestamp string
+     */
+    isValidISOString(dateString) {
         try {
-            localStorage.setItem('todos', JSON.stringify(this.todos));
-            localStorage.setItem('nextId', this.nextId.toString());
-        } catch (error) {
-            this.handleError('Failed to save todos', error);
+            const date = new Date(dateString);
+            return date instanceof Date && !isNaN(date) && dateString === date.toISOString();
+        } catch {
+            return false;
         }
     }
 
     /**
-     * Load todos from localStorage
+     * Check localStorage availability and quota
+     */
+    checkLocalStorageAvailability() {
+        try {
+            if (typeof Storage === 'undefined' || !window.localStorage) {
+                throw new Error('localStorage is not available');
+            }
+
+            // Test localStorage with a small value
+            const testKey = '__ls_test__';
+            localStorage.setItem(testKey, 'test');
+            localStorage.removeItem(testKey);
+            
+            return true;
+        } catch (error) {
+            throw new Error(`localStorage not available: ${error.message}`);
+        }
+    }
+
+    /**
+     * Estimate storage size needed for todos
+     */
+    estimateStorageSize(todos) {
+        try {
+            return JSON.stringify(todos).length;
+        } catch (error) {
+            throw new Error('Cannot estimate storage size: data not serializable');
+        }
+    }
+
+    /**
+     * Save todos to localStorage with enhanced error handling
+     */
+    saveTodos() {
+        try {
+            // Check localStorage availability
+            this.checkLocalStorageAvailability();
+
+            // Validate all todos before saving
+            this.todos.forEach((todo, index) => {
+                try {
+                    this.validateTodo(todo);
+                } catch (error) {
+                    throw new Error(`Invalid todo at index ${index}: ${error.message}`);
+                }
+            });
+
+            // Estimate storage size
+            const dataSize = this.estimateStorageSize(this.todos);
+            
+            // Check if we're approaching quota (most browsers allow ~5-10MB)
+            if (dataSize > 4 * 1024 * 1024) { // 4MB warning threshold
+                console.warn(`Large data size detected: ${Math.round(dataSize / 1024)}KB`);
+            }
+
+            // Save to localStorage
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.todos));
+            
+            console.log(`Saved ${this.todos.length} todos (${Math.round(dataSize / 1024)}KB)`);
+        } catch (error) {
+            // Handle quota exceeded error specifically
+            if (error.name === 'QuotaExceededError' || error.code === 22) {
+                this.handleStorageQuotaExceeded();
+            } else {
+                this.handleError('Failed to save todos to localStorage', error);
+            }
+        }
+    }
+
+    /**
+     * Handle localStorage quota exceeded
+     */
+    handleStorageQuotaExceeded() {
+        console.warn('localStorage quota exceeded');
+        
+        // Try to free up space by removing old completed todos
+        const originalCount = this.todos.length;
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 30); // Remove completed todos older than 30 days
+        
+        this.todos = this.todos.filter(todo => {
+            if (!todo.completed) return true;
+            if (!todo.created) return true; // Keep todos without created date to be safe
+            
+            try {
+                const todoDate = new Date(todo.created);
+                return todoDate > cutoffDate;
+            } catch {
+                return true; // Keep todos with invalid dates to be safe
+            }
+        });
+        
+        const removedCount = originalCount - this.todos.length;
+        
+        if (removedCount > 0) {
+            console.log(`Removed ${removedCount} old completed todos to free space`);
+            this.showMessage(`Removed ${removedCount} old completed items to free storage space`, 'info');
+            
+            // Try saving again
+            try {
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.todos));
+            } catch (error) {
+                this.showMessage('Storage still full. Please clear more items manually.', 'warning');
+            }
+        } else {
+            this.showMessage('Storage quota exceeded. Please clear some completed items.', 'warning');
+        }
+    }
+
+    /**
+     * Load todos from localStorage with enhanced error handling
      */
     loadTodos() {
         try {
-            const storedTodos = localStorage.getItem('todos');
-            const storedNextId = localStorage.getItem('nextId');
+            // Check localStorage availability
+            this.checkLocalStorageAvailability();
             
-            if (storedTodos) {
-                this.todos = JSON.parse(storedTodos);
-            }
+            const storedTodos = localStorage.getItem(this.STORAGE_KEY);
             
-            if (storedNextId) {
-                this.nextId = parseInt(storedNextId, 10);
+            if (!storedTodos) {
+                console.log('No stored todos found, starting fresh');
+                this.todos = [];
+                return;
             }
+
+            // Parse stored data
+            let parsedTodos;
+            try {
+                parsedTodos = JSON.parse(storedTodos);
+            } catch (parseError) {
+                throw new Error(`Corrupted todo data: ${parseError.message}`);
+            }
+
+            // Validate data structure
+            if (!Array.isArray(parsedTodos)) {
+                throw new Error('Stored todos is not an array');
+            }
+
+            // Validate and clean up individual todos
+            const validTodos = [];
+            const invalidTodos = [];
+
+            parsedTodos.forEach((todo, index) => {
+                try {
+                    // Try to fix common issues before validation
+                    if (todo && typeof todo === 'object') {
+                        // Convert old numeric IDs to string format
+                        if (typeof todo.id === 'number') {
+                            todo.id = `todo_${todo.id}_${Date.now()}`;
+                        }
+                        
+                        // Add missing created timestamp
+                        if (!todo.created && todo.createdAt) {
+                            todo.created = todo.createdAt;
+                        } else if (!todo.created) {
+                            todo.created = new Date().toISOString();
+                        }
+                        
+                        // Ensure boolean completed field
+                        if (typeof todo.completed !== 'boolean') {
+                            todo.completed = Boolean(todo.completed);
+                        }
+
+                        // Trim and validate text
+                        if (typeof todo.text === 'string') {
+                            todo.text = todo.text.trim();
+                        }
+                    }
+
+                    this.validateTodo(todo);
+                    validTodos.push(todo);
+                } catch (validationError) {
+                    console.warn(`Invalid todo at index ${index}:`, validationError.message, todo);
+                    invalidTodos.push({ index, todo, error: validationError.message });
+                }
+            });
+
+            this.todos = validTodos;
+
+            if (invalidTodos.length > 0) {
+                console.warn(`Loaded ${validTodos.length} valid todos, skipped ${invalidTodos.length} invalid ones`);
+                this.showMessage(`Recovered ${validTodos.length} todos, ${invalidTodos.length} corrupted items were removed`, 'warning');
+                
+                // Save cleaned data back to localStorage
+                this.saveTodos();
+            } else {
+                console.log(`Loaded ${validTodos.length} todos successfully`);
+            }
+
         } catch (error) {
-            this.handleError('Failed to load todos', error);
+            this.handleError('Failed to load todos from localStorage', error);
+            
+            // Try to backup corrupted data before resetting
+            try {
+                const corruptedData = localStorage.getItem(this.STORAGE_KEY);
+                if (corruptedData) {
+                    localStorage.setItem(`${this.STORAGE_KEY}_backup_${Date.now()}`, corruptedData);
+                    console.log('Corrupted data backed up before reset');
+                }
+            } catch (backupError) {
+                console.warn('Could not backup corrupted data:', backupError);
+            }
+            
             // Reset to empty state on load error
             this.todos = [];
-            this.nextId = 1;
+            this.showMessage('Todo data was corrupted and has been reset. Starting fresh.', 'warning');
         }
     }
 
@@ -386,18 +855,39 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Development helpers
-if (process?.env?.NODE_ENV === 'development') {
+if (typeof process === 'undefined' || process?.env?.NODE_ENV === 'development') {
     window.todoAppHelpers = {
         clearAllData: () => {
             localStorage.removeItem('todos');
+            // Clean up old format data
             localStorage.removeItem('nextId');
             location.reload();
         },
         exportData: () => {
             return {
                 todos: JSON.parse(localStorage.getItem('todos') || '[]'),
-                nextId: localStorage.getItem('nextId')
+                backupKeys: Object.keys(localStorage).filter(key => key.startsWith('todos_backup_'))
             };
+        },
+        importData: (data) => {
+            if (data && Array.isArray(data.todos)) {
+                localStorage.setItem('todos', JSON.stringify(data.todos));
+                location.reload();
+            }
+        },
+        validateStorage: () => {
+            try {
+                const app = window.todoApp;
+                if (!app) return 'TodoApp not initialized';
+                
+                app.checkLocalStorageAvailability();
+                const todos = app.getTodos();
+                todos.forEach(app.validateTodo.bind(app));
+                
+                return `✅ Storage valid: ${todos.length} todos`;
+            } catch (error) {
+                return `❌ Storage invalid: ${error.message}`;
+            }
         }
     };
 }
