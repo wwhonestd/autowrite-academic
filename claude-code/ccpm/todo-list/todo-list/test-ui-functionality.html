@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App UI Functionality Test</title>
+    <style>
+        body { 
+            font-family: system-ui, sans-serif; 
+            padding: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        .test-section { 
+            border: 1px solid #ddd; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .test-log { 
+            background: #f5f5f5; 
+            padding: 15px; 
+            border-radius: 4px; 
+            margin: 10px 0; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+        }
+        iframe { 
+            width: 100%; 
+            height: 600px; 
+            border: 1px solid #ccc; 
+            border-radius: 8px; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Todo App UI Functionality Test</h1>
+    
+    <div class="test-section">
+        <h2>Live Application</h2>
+        <iframe src="index.html" id="todoFrame"></iframe>
+    </div>
+
+    <div class="test-section">
+        <h2>Interactive Test Controls</h2>
+        <div id="testControls">
+            <button onclick="testAddTodo()">Test: Add Todo</button>
+            <button onclick="testEditTodo()">Test: Edit Todo</button>
+            <button onclick="testToggleTodo()">Test: Toggle Complete</button>
+            <button onclick="testDeleteTodo()">Test: Delete Todo</button>
+            <button onclick="testFiltering()">Test: Filtering</button>
+            <button onclick="clearAllTests()">Clear All</button>
+        </div>
+        
+        <div class="test-log" id="testLog">
+Test log will appear here...
+
+Manual Testing Instructions:
+1. Add some todo items using the input field
+2. Click on todo text to edit inline (Enter to save, Escape to cancel)
+3. Use the edit button (✏️) to edit todos
+4. Use checkboxes to toggle completion status
+5. Use delete button (×) - should show confirmation dialog
+6. Test filtering with All/Active/Completed buttons
+7. Observe timestamps showing "just now", "Xs ago", etc.
+8. Verify localStorage persistence (refresh page, data should remain)
+
+Expected Features:
+✓ Add todos (input + Enter or click +)
+✓ Display todos with timestamps
+✓ Inline editing (click text or edit button)
+✓ Toggle completion with checkbox
+✓ Delete with confirmation dialog
+✓ Filter todos by status
+✓ Visual feedback and hover states
+✓ Data persistence in localStorage
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Automated Tests</h2>
+        <button onclick="runAutomatedTests()">Run Automated Tests</button>
+        <div class="test-log" id="automatedTestLog">Click "Run Automated Tests" to start...</div>
+    </div>
+
+    <script>
+        let testCount = 0;
+        
+        function log(message, type = 'info') {
+            const testLog = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            testLog.innerHTML += `[${timestamp}] <span class="${className}">${message}</span>\n`;
+            testLog.scrollTop = testLog.scrollHeight;
+        }
+        
+        function logAutomated(message, type = 'info') {
+            const testLog = document.getElementById('automatedTestLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            testLog.innerHTML += `[${timestamp}] <span class="${className}">${message}</span>\n`;
+            testLog.scrollTop = testLog.scrollHeight;
+        }
+        
+        function getAppFromFrame() {
+            try {
+                return document.getElementById('todoFrame').contentWindow.todoApp;
+            } catch (e) {
+                log('Error: Cannot access iframe content. Testing manually...', 'error');
+                return null;
+            }
+        }
+        
+        function testAddTodo() {
+            const app = getAppFromFrame();
+            if (!app) {
+                log('Manual test: Please add a todo item in the app above', 'info');
+                return;
+            }
+            
+            const testText = `Test todo ${++testCount}`;
+            try {
+                app.addTodo(testText);
+                log(`✓ Successfully added todo: "${testText}"`, 'success');
+            } catch (error) {
+                log(`✗ Failed to add todo: ${error.message}`, 'error');
+            }
+        }
+        
+        function testEditTodo() {
+            const app = getAppFromFrame();
+            if (!app) {
+                log('Manual test: Click on any todo text to edit it inline', 'info');
+                return;
+            }
+            
+            const todos = app.getTodos();
+            if (todos.length === 0) {
+                log('No todos to edit. Add some todos first.', 'info');
+                return;
+            }
+            
+            try {
+                const firstTodo = todos[0];
+                const newText = `${firstTodo.text} (edited)`;
+                app.updateTodo(firstTodo.id, { text: newText });
+                log(`✓ Successfully edited todo to: "${newText}"`, 'success');
+            } catch (error) {
+                log(`✗ Failed to edit todo: ${error.message}`, 'error');
+            }
+        }
+        
+        function testToggleTodo() {
+            const app = getAppFromFrame();
+            if (!app) {
+                log('Manual test: Click checkboxes to toggle completion status', 'info');
+                return;
+            }
+            
+            const todos = app.getTodos();
+            if (todos.length === 0) {
+                log('No todos to toggle. Add some todos first.', 'info');
+                return;
+            }
+            
+            try {
+                const firstTodo = todos[0];
+                const wasCompleted = firstTodo.completed;
+                app.toggleTodo(firstTodo.id);
+                log(`✓ Successfully toggled todo "${firstTodo.text}" from ${wasCompleted ? 'completed' : 'active'} to ${!wasCompleted ? 'completed' : 'active'}`, 'success');
+            } catch (error) {
+                log(`✗ Failed to toggle todo: ${error.message}`, 'error');
+            }
+        }
+        
+        function testDeleteTodo() {
+            const app = getAppFromFrame();
+            if (!app) {
+                log('Manual test: Click delete button (×) on any todo', 'info');
+                return;
+            }
+            
+            const todos = app.getTodos();
+            if (todos.length === 0) {
+                log('No todos to delete. Add some todos first.', 'info');
+                return;
+            }
+            
+            try {
+                const lastTodo = todos[todos.length - 1];
+                const todoText = lastTodo.text;
+                app.deleteTodo(lastTodo.id);
+                log(`✓ Successfully deleted todo: "${todoText}"`, 'success');
+            } catch (error) {
+                log(`✗ Failed to delete todo: ${error.message}`, 'error');
+            }
+        }
+        
+        function testFiltering() {
+            log('Manual test: Use the All/Active/Completed filter buttons', 'info');
+        }
+        
+        function clearAllTests() {
+            const app = getAppFromFrame();
+            if (!app) {
+                log('Manual test: Please clear todos manually in the app', 'info');
+                return;
+            }
+            
+            try {
+                app.clearAllTodos();
+                log('✓ Successfully cleared all todos', 'success');
+            } catch (error) {
+                log(`✗ Failed to clear todos: ${error.message}`, 'error');
+            }
+        }
+        
+        function runAutomatedTests() {
+            const automatedLog = document.getElementById('automatedTestLog');
+            automatedLog.innerHTML = '';
+            
+            logAutomated('Starting automated tests...', 'info');
+            
+            const app = getAppFromFrame();
+            if (!app) {
+                logAutomated('Cannot run automated tests - iframe access blocked. Please test manually.', 'error');
+                return;
+            }
+            
+            let passed = 0;
+            let failed = 0;
+            
+            try {
+                // Test 1: Add todo
+                const testTodoText = 'Automated test todo';
+                app.clearAllTodos();
+                const addedTodo = app.addTodo(testTodoText);
+                if (addedTodo && addedTodo.text === testTodoText) {
+                    logAutomated('✓ Test 1 PASSED: Add todo', 'success');
+                    passed++;
+                } else {
+                    logAutomated('✗ Test 1 FAILED: Add todo', 'error');
+                    failed++;
+                }
+                
+                // Test 2: Get todos
+                const todos = app.getTodos();
+                if (todos.length === 1 && todos[0].text === testTodoText) {
+                    logAutomated('✓ Test 2 PASSED: Get todos', 'success');
+                    passed++;
+                } else {
+                    logAutomated('✗ Test 2 FAILED: Get todos', 'error');
+                    failed++;
+                }
+                
+                // Test 3: Update todo
+                const updatedText = 'Updated automated test todo';
+                const updatedTodo = app.updateTodo(addedTodo.id, { text: updatedText });
+                if (updatedTodo && updatedTodo.text === updatedText) {
+                    logAutomated('✓ Test 3 PASSED: Update todo', 'success');
+                    passed++;
+                } else {
+                    logAutomated('✗ Test 3 FAILED: Update todo', 'error');
+                    failed++;
+                }
+                
+                // Test 4: Toggle todo
+                const toggledTodo = app.toggleTodo(addedTodo.id);
+                if (toggledTodo && toggledTodo.completed === true) {
+                    logAutomated('✓ Test 4 PASSED: Toggle todo', 'success');
+                    passed++;
+                } else {
+                    logAutomated('✗ Test 4 FAILED: Toggle todo', 'error');
+                    failed++;
+                }
+                
+                // Test 5: Delete todo
+                const deletedTodo = app.deleteTodo(addedTodo.id);
+                const remainingTodos = app.getTodos();
+                if (deletedTodo && remainingTodos.length === 0) {
+                    logAutomated('✓ Test 5 PASSED: Delete todo', 'success');
+                    passed++;
+                } else {
+                    logAutomated('✗ Test 5 FAILED: Delete todo', 'error');
+                    failed++;
+                }
+                
+                // Test 6: Validation
+                try {
+                    app.addTodo('');
+                    logAutomated('✗ Test 6 FAILED: Should reject empty todo', 'error');
+                    failed++;
+                } catch (e) {
+                    logAutomated('✓ Test 6 PASSED: Correctly rejects empty todo', 'success');
+                    passed++;
+                }
+                
+                logAutomated(`\n=== TEST SUMMARY ===`, 'info');
+                logAutomated(`Passed: ${passed}`, 'success');
+                logAutomated(`Failed: ${failed}`, failed > 0 ? 'error' : 'info');
+                logAutomated(`Total: ${passed + failed}`, 'info');
+                
+                if (failed === 0) {
+                    logAutomated('\n🎉 All automated tests passed!', 'success');
+                } else {
+                    logAutomated('\n⚠️  Some tests failed. Check the implementation.', 'error');
+                }
+                
+            } catch (error) {
+                logAutomated(`Automated test error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run basic checks on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('Todo App UI Test Page loaded', 'info');
+                log('Use the buttons above to test functionality', 'info');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,977 @@
+/* ========================================
+   CSS Reset and Normalize
+======================================== */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+}
+
+body {
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+img, picture, video, canvas, svg {
+    display: block;
+    max-width: 100%;
+}
+
+input, button, textarea, select {
+    font: inherit;
+}
+
+ul, ol {
+    list-style: none;
+}
+
+button {
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+/* ========================================
+   CSS Custom Properties (Design Tokens)
+======================================== */
+
+:root {
+    /* Brand Colors - Modern Blue Gradient Theme */
+    --color-primary: #3b82f6;
+    --color-primary-light: #60a5fa;
+    --color-primary-dark: #1d4ed8;
+    --color-primary-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    --color-secondary: #64748b;
+    --color-secondary-light: #94a3b8;
+    --color-accent: #f59e0b;
+    --color-accent-light: #fbbf24;
+    
+    /* Status Colors */
+    --color-success: #10b981;
+    --color-success-light: #34d399;
+    --color-danger: #ef4444;
+    --color-danger-light: #f87171;
+    --color-warning: #f59e0b;
+    --color-info: #06b6d4;
+    
+    /* Surface Colors */
+    --color-light: #f8fafc;
+    --color-dark: #1e293b;
+    
+    /* Neutral Colors */
+    --color-white: #ffffff;
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+    
+    /* Typography */
+    --font-family-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family-mono: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+    
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+    
+    /* Spacing */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-10: 2.5rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    
+    /* Border radius */
+    --radius-sm: 0.125rem;
+    --radius-base: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-full: 9999px;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-base: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    
+    /* Transitions & Animations */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    
+    /* Animation keyframes for micro-interactions */
+    --ease-elastic: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    
+    /* Layout */
+    --container-max-width: 768px;
+    --content-padding: var(--space-4);
+}
+
+/* ========================================
+   Base Styles
+======================================== */
+
+body {
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--color-gray-800);
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    min-height: 100vh;
+}
+
+/* Screen reader only text */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ========================================
+   Layout Components
+======================================== */
+
+.container {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: var(--content-padding);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-header {
+    text-align: center;
+    padding: var(--space-12) 0 var(--space-8);
+    position: relative;
+}
+
+.app-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: var(--color-primary-gradient);
+    border-radius: var(--radius-full);
+}
+
+.app-header h1 {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    background: var(--color-primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: var(--color-gray-900); /* Fallback */
+    margin-bottom: var(--space-2);
+    letter-spacing: -0.02em;
+}
+
+.app-header p {
+    font-size: var(--font-size-lg);
+    color: var(--color-gray-600);
+    font-weight: var(--font-weight-medium);
+}
+
+.app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+.app-footer {
+    margin-top: var(--space-12);
+    padding: var(--space-6) 0;
+    text-align: center;
+    border-top: 1px solid var(--color-gray-200);
+    color: var(--color-gray-500);
+    font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   Todo Input Section
+======================================== */
+
+.todo-input-section {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    box-shadow: 
+        0 8px 32px rgba(59, 130, 246, 0.15),
+        0 1px 1px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.todo-input-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+}
+
+.input-group {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.todo-input {
+    flex: 1;
+    padding: var(--space-4) var(--space-5);
+    border: 2px solid rgba(226, 232, 240, 0.6);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+    background: rgba(255, 255, 255, 0.8);
+    transition: all var(--transition-base);
+    backdrop-filter: blur(8px);
+}
+
+.todo-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 
+        0 0 0 4px rgba(59, 130, 246, 0.1),
+        0 4px 12px rgba(59, 130, 246, 0.15);
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-1px);
+}
+
+.todo-input::placeholder {
+    color: var(--color-gray-500);
+    font-weight: var(--font-weight-normal);
+}
+
+.add-btn {
+    padding: var(--space-4) var(--space-5);
+    background: var(--color-primary-gradient);
+    color: var(--color-white);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-lg);
+    transition: all var(--transition-base);
+    min-width: 56px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.add-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left var(--transition-slow);
+}
+
+.add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+}
+
+.add-btn:hover::before {
+    left: 100%;
+}
+
+.add-btn:active {
+    transform: translateY(0);
+}
+
+.add-btn:focus {
+    outline: none;
+    box-shadow: 
+        0 8px 24px rgba(59, 130, 246, 0.4),
+        0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+.input-help {
+    font-size: var(--font-size-sm);
+    color: var(--color-gray-500);
+}
+
+/* ========================================
+   Todo List Section
+======================================== */
+
+.todo-list-section {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: 
+        0 8px 32px rgba(59, 130, 246, 0.15),
+        0 1px 1px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+}
+
+.todo-list-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+}
+
+.todo-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4) var(--space-6);
+    background-color: var(--color-gray-50);
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.filter-controls {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.filter-btn {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-gray-600);
+    transition: all var(--transition-base);
+    position: relative;
+    min-width: 44px; /* Touch-friendly */
+    text-align: center;
+}
+
+.filter-btn:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--color-primary-dark);
+    transform: translateY(-1px);
+}
+
+.filter-btn.active {
+    background: var(--color-primary-gradient);
+    color: var(--color-white);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.todo-stats {
+    font-size: var(--font-size-sm);
+    color: var(--color-gray-600);
+}
+
+.todo-list {
+    min-height: 200px;
+}
+
+/* Todo Items */
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+    background: rgba(255, 255, 255, 0.5);
+    transition: all var(--transition-base);
+    position: relative;
+    min-height: 72px; /* Touch-friendly */
+}
+
+.todo-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--color-primary-gradient);
+    opacity: 0;
+    transition: opacity var(--transition-base);
+}
+
+.todo-item:hover {
+    background: rgba(255, 255, 255, 0.8);
+    transform: translateX(4px);
+}
+
+.todo-item:hover::before {
+    opacity: 1;
+}
+
+.todo-item:last-child {
+    border-bottom: none;
+}
+
+.todo-item.completed {
+    opacity: 0.6;
+    background: rgba(226, 232, 240, 0.3);
+}
+
+.todo-item.completed .todo-text {
+    text-decoration: line-through;
+    color: var(--color-gray-500);
+}
+
+.todo-item.completed::before {
+    background: var(--color-success);
+}
+
+.todo-item.editing {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.todo-item.editing::before {
+    opacity: 1;
+    background: var(--color-accent);
+}
+
+.todo-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.todo-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    cursor: pointer;
+}
+
+.todo-checkbox {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+    transform: scale(1);
+}
+
+.todo-checkbox:hover {
+    transform: scale(1.1);
+}
+
+.todo-checkbox:checked {
+    transform: scale(1.05);
+    animation: checkbox-bounce 0.4s var(--ease-elastic);
+}
+
+.todo-text {
+    flex: 1;
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    word-break: break-word;
+    cursor: text;
+}
+
+.todo-text:hover {
+    color: var(--color-primary);
+}
+
+.todo-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: calc(18px + var(--space-3)); /* Align with todo text */
+}
+
+.todo-timestamp {
+    font-size: var(--font-size-xs);
+    color: var(--color-gray-400);
+}
+
+.todo-actions {
+    display: flex;
+    gap: var(--space-1);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.todo-item:hover .todo-actions {
+    opacity: 1;
+}
+
+.todo-edit,
+.todo-delete {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-base);
+    position: relative;
+    overflow: hidden;
+}
+
+.todo-edit {
+    color: var(--color-gray-600);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.todo-edit:hover {
+    background: var(--color-primary);
+    color: var(--color-white);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.todo-delete {
+    color: var(--color-danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.todo-delete:hover {
+    background: var(--color-danger);
+    color: var(--color-white);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Edit Input */
+.todo-edit-input {
+    width: 100%;
+    padding: var(--space-2);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    background: var(--color-white);
+    outline: none;
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-16);
+    color: var(--color-gray-500);
+    position: relative;
+}
+
+.empty-message {
+    text-align: center;
+    animation: slide-in-from-top 0.6s var(--transition-base);
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: var(--space-6);
+    display: block;
+    opacity: 0.7;
+    color: var(--color-primary-light);
+    animation: pulse-success 2s ease-in-out infinite;
+}
+
+.empty-message h3 {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-gray-700);
+    margin-bottom: var(--space-2);
+}
+
+.empty-message p {
+    font-size: var(--font-size-base);
+    color: var(--color-gray-500);
+    line-height: var(--line-height-relaxed);
+}
+
+.bulk-actions {
+    padding: var(--space-4) var(--space-6);
+    background-color: var(--color-gray-50);
+    border-top: 1px solid var(--color-gray-200);
+}
+
+.bulk-action-btn {
+    padding: var(--space-3) var(--space-5);
+    background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-light) 100%);
+    color: var(--color-white);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    transition: all var(--transition-base);
+    min-height: 44px; /* Touch-friendly */
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.bulk-action-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+}
+
+.bulk-action-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.bulk-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ========================================
+   Animations and Keyframes
+======================================== */
+
+@keyframes checkbox-bounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1.05); }
+}
+
+@keyframes slide-in-from-top {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slide-out-to-right {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+@keyframes pulse-success {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Animation classes for JavaScript to use */
+.todo-item.adding {
+    animation: slide-in-from-top 0.3s var(--transition-base);
+}
+
+.todo-item.removing {
+    animation: slide-out-to-right 0.3s var(--transition-base);
+}
+
+.todo-item.completing {
+    animation: pulse-success 0.4s var(--ease-elastic);
+}
+
+.shake-animation {
+    animation: shake 0.5s ease-in-out;
+}
+
+/* ========================================
+   Responsive Design (Mobile First)
+======================================== */
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 576px) {
+    :root {
+        --content-padding: var(--space-6);
+    }
+    
+    .app-header h1 {
+        font-size: var(--font-size-4xl);
+    }
+    
+    .todo-input-section,
+    .todo-list-section {
+        padding: var(--space-8);
+    }
+    
+    .input-group {
+        gap: var(--space-3);
+    }
+    
+    .filter-controls {
+        gap: var(--space-3);
+    }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+    :root {
+        --content-padding: var(--space-8);
+        --container-max-width: 896px;
+    }
+    
+    .container {
+        padding: var(--space-8);
+    }
+    
+    .app-header::before {
+        width: 80px;
+        height: 5px;
+    }
+    
+    .todo-input-section {
+        padding: var(--space-10);
+    }
+    
+    .todo-input {
+        font-size: var(--font-size-xl);
+    }
+    
+    .add-btn {
+        min-width: 64px;
+        min-height: 64px;
+        font-size: var(--font-size-xl);
+    }
+    
+    .todo-controls {
+        padding: var(--space-6) var(--space-8);
+    }
+    
+    .todo-item {
+        padding: var(--space-6) var(--space-8);
+        min-height: 80px;
+    }
+    
+    .bulk-actions {
+        padding: var(--space-6) var(--space-8);
+    }
+    
+    /* Show actions on hover for larger screens */
+    .todo-actions {
+        opacity: 1;
+    }
+    
+    .todo-item:not(:hover) .todo-actions {
+        opacity: 0.6;
+    }
+    
+    .todo-item:hover .todo-actions {
+        opacity: 1;
+    }
+}
+
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+    :root {
+        --container-max-width: 1024px;
+    }
+    
+    .container {
+        padding: var(--space-12);
+    }
+    
+    .app-main {
+        gap: var(--space-12);
+    }
+    
+    .todo-input-section {
+        padding: var(--space-12);
+    }
+    
+    .todo-item {
+        padding: var(--space-8);
+        min-height: 88px;
+    }
+    
+    /* Desktop-specific hover effects */
+    .todo-item:not(:hover) .todo-actions {
+        opacity: 0;
+    }
+}
+
+/* Extra large devices (large desktops, 1200px and up) */
+@media (min-width: 1200px) {
+    :root {
+        --container-max-width: 1200px;
+    }
+}
+
+/* ========================================
+   Accessibility Enhancements
+======================================== */
+
+/* High contrast focus indicators */
+*:focus {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* Enhanced focus for interactive elements */
+.todo-input:focus,
+.add-btn:focus,
+.filter-btn:focus,
+.bulk-action-btn:focus {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
+}
+
+.todo-checkbox:focus {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 4px;
+}
+
+.todo-edit:focus,
+.todo-delete:focus {
+    outline: 3px solid currentColor;
+    outline-offset: 3px;
+}
+
+/* Focus within for compound components */
+.todo-item:focus-within {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.todo-item:focus-within::before {
+    opacity: 1;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .todo-item:hover {
+        transform: none;
+    }
+    
+    .add-btn:hover,
+    .todo-edit:hover,
+    .todo-delete:hover,
+    .bulk-action-btn:hover:not(:disabled) {
+        transform: none;
+    }
+    
+    .todo-checkbox:hover {
+        transform: scale(1);
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --color-gray-200: #000000;
+        --color-gray-300: #333333;
+        --color-gray-400: #666666;
+    }
+    
+    .todo-input-section,
+    .todo-list-section {
+        border: 2px solid var(--color-gray-800);
+        background: var(--color-white);
+        backdrop-filter: none;
+    }
+    
+    .todo-item {
+        border-bottom: 2px solid var(--color-gray-300);
+    }
+    
+    .filter-btn.active {
+        background: var(--color-gray-900);
+        border: 2px solid var(--color-white);
+    }
+}
+
+/* Screen reader improvements */
+.sr-only:not(:focus):not(:active) {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: var(--color-primary);
+    color: var(--color-white);
+    padding: 8px;
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    z-index: 1000;
+    font-weight: var(--font-weight-semibold);
+}
+
+.skip-link:focus {
+    top: 6px;
+}

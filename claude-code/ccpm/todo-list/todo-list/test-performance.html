@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App - Performance Tests</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .performance-results {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+            font-family: monospace;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .test-section h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        .metric.good { color: #28a745; }
+        .metric.warning { color: #ffc107; }
+        .metric.error { color: #dc3545; }
+        .test-controls {
+            margin: 10px;
+            text-align: center;
+        }
+        .test-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+        .test-btn:hover { background: #0056b3; }
+        .test-btn:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+        }
+    </style>
+</head>
+<body>
+    <div class="performance-results" id="performance-results">
+        <h2>Performance Monitoring</h2>
+        <div class="test-controls">
+            <button class="test-btn" onclick="runPerformanceTests()">Run Tests</button>
+            <button class="test-btn" onclick="runStressTest()">Stress Test</button>
+            <button class="test-btn" onclick="clearResults()">Clear</button>
+        </div>
+        <div id="results"></div>
+    </div>
+
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="container">
+        <header class="app-header">
+            <h1>My Todo List - Performance Testing</h1>
+            <p>Performance optimization and testing environment</p>
+        </header>
+
+        <main class="app-main" id="main-content">
+            <section class="todo-input-section">
+                <form class="todo-form" id="todo-form" aria-label="Add new todo">
+                    <div class="input-group">
+                        <label for="todo-input" class="sr-only">New todo item</label>
+                        <input 
+                            type="text" 
+                            id="todo-input" 
+                            class="todo-input" 
+                            placeholder="What needs to be done?" 
+                            required
+                            aria-describedby="todo-input-help"
+                        >
+                        <button type="submit" class="add-btn" aria-label="Add todo">
+                            <span aria-hidden="true">+</span>
+                            <span class="sr-only">Add</span>
+                        </button>
+                    </div>
+                    <div id="todo-input-help" class="input-help">
+                        Press Enter or click + to add a new task
+                    </div>
+                </form>
+            </section>
+
+            <section class="todo-list-section">
+                <div class="todo-controls">
+                    <div class="filter-controls">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="active">Active</button>
+                        <button class="filter-btn" data-filter="completed">Completed</button>
+                    </div>
+                    <div class="todo-stats">
+                        <span id="todo-count">0 items left</span>
+                    </div>
+                </div>
+
+                <ul class="todo-list" id="todo-list" aria-label="Todo items">
+                </ul>
+
+                <div class="bulk-actions">
+                    <button class="bulk-action-btn" id="clear-completed" disabled>
+                        Clear Completed
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Performance testing utilities
+        class PerformanceTester {
+            constructor() {
+                this.results = {};
+                this.startTime = 0;
+            }
+
+            // Measure initial page load performance
+            measurePageLoad() {
+                if (performance.timing) {
+                    const timing = performance.timing;
+                    return {
+                        domReady: timing.domContentLoadedEventEnd - timing.navigationStart,
+                        pageLoad: timing.loadEventEnd - timing.navigationStart,
+                        firstPaint: performance.getEntriesByType('paint')
+                            .find(entry => entry.name === 'first-contentful-paint')?.startTime || 0,
+                        domElements: document.querySelectorAll('*').length,
+                        bundleSize: this.calculateBundleSize()
+                    };
+                }
+                return {};
+            }
+
+            // Calculate approximate bundle size
+            calculateBundleSize() {
+                let totalSize = 0;
+                const resources = performance.getEntriesByType('resource');
+                resources.forEach(resource => {
+                    if (resource.name.includes('styles.css') || 
+                        resource.name.includes('script.js')) {
+                        totalSize += resource.transferSize || resource.decodedBodySize || 0;
+                    }
+                });
+                
+                // Add HTML size estimate
+                totalSize += document.documentElement.outerHTML.length;
+                return Math.round(totalSize / 1024 * 100) / 100; // KB
+            }
+
+            // Measure operation performance
+            measureOperation(operationName, operation) {
+                const start = performance.now();
+                const result = operation();
+                const end = performance.now();
+                
+                this.results[operationName] = {
+                    duration: Math.round((end - start) * 100) / 100,
+                    timestamp: new Date().toISOString()
+                };
+                
+                return result;
+            }
+
+            // Memory usage estimation
+            measureMemoryUsage() {
+                if (performance.memory) {
+                    return {
+                        used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024 * 100) / 100,
+                        total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024 * 100) / 100,
+                        limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024 * 100) / 100
+                    };
+                }
+                return null;
+            }
+
+            // Test DOM manipulation performance
+            testDOMPerformance() {
+                const testData = Array.from({length: 100}, (_, i) => `Test task ${i + 1}`);
+                
+                return this.measureOperation('bulkAdd', () => {
+                    testData.forEach(text => {
+                        window.todoApp.addTodo(text);
+                    });
+                });
+            }
+
+            // Test filtering performance
+            testFilterPerformance() {
+                const filters = ['all', 'active', 'completed'];
+                const results = {};
+                
+                filters.forEach(filter => {
+                    results[filter] = this.measureOperation(`filter_${filter}`, () => {
+                        window.todoApp.setFilter(filter);
+                    });
+                });
+                
+                return results;
+            }
+
+            // Generate performance report
+            generateReport() {
+                const pageLoad = this.measurePageLoad();
+                const memory = this.measureMemoryUsage();
+                
+                return {
+                    pageLoad,
+                    memory,
+                    operations: this.results,
+                    timestamp: new Date().toISOString()
+                };
+            }
+        }
+
+        // Global performance tester instance
+        const perfTester = new PerformanceTester();
+
+        // Run comprehensive performance tests
+        function runPerformanceTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-section"><h3>Running tests...</h3></div>';
+
+            setTimeout(() => {
+                // Clear existing todos for consistent testing
+                window.todoApp.clearAllTodos();
+                
+                // Test basic operations
+                perfTester.measureOperation('addSingleTodo', () => {
+                    window.todoApp.addTodo('Performance test item');
+                });
+
+                perfTester.measureOperation('toggleTodo', () => {
+                    const todos = window.todoApp.todos;
+                    if (todos.length > 0) {
+                        window.todoApp.toggleTodo(todos[0].id);
+                    }
+                });
+
+                perfTester.measureOperation('deleteTodo', () => {
+                    const todos = window.todoApp.todos;
+                    if (todos.length > 0) {
+                        window.todoApp.deleteTodo(todos[0].id);
+                    }
+                });
+
+                // Test bulk operations
+                perfTester.testDOMPerformance();
+                perfTester.testFilterPerformance();
+
+                // Generate and display report
+                const report = perfTester.generateReport();
+                displayResults(report);
+            }, 100);
+        }
+
+        // Run stress test with many items
+        function runStressTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="test-section"><h3>Running stress test...</h3></div>';
+
+            setTimeout(() => {
+                window.todoApp.clearAllTodos();
+                
+                // Add 1000 items
+                const stressTest = perfTester.measureOperation('addThousandItems', () => {
+                    for (let i = 0; i < 1000; i++) {
+                        window.todoApp.addTodo(`Stress test item ${i + 1}`);
+                    }
+                });
+
+                // Test filtering with many items
+                perfTester.testFilterPerformance();
+
+                // Test clearing all
+                perfTester.measureOperation('clearAll', () => {
+                    window.todoApp.clearAllTodos();
+                });
+
+                const report = perfTester.generateReport();
+                displayResults(report);
+            }, 100);
+        }
+
+        // Display test results
+        function displayResults(report) {
+            const resultsDiv = document.getElementById('results');
+            let html = '';
+
+            // Page Load Metrics
+            html += '<div class="test-section"><h3>📊 Page Load</h3>';
+            if (report.pageLoad.domReady) {
+                html += `<div class="metric ${report.pageLoad.domReady < 500 ? 'good' : report.pageLoad.domReady < 1000 ? 'warning' : 'error'}">
+                    <span>DOM Ready:</span><span>${report.pageLoad.domReady}ms</span>
+                </div>`;
+            }
+            if (report.pageLoad.pageLoad) {
+                html += `<div class="metric ${report.pageLoad.pageLoad < 500 ? 'good' : report.pageLoad.pageLoad < 1000 ? 'warning' : 'error'}">
+                    <span>Page Load:</span><span>${report.pageLoad.pageLoad}ms</span>
+                </div>`;
+            }
+            if (report.pageLoad.firstPaint) {
+                html += `<div class="metric ${report.pageLoad.firstPaint < 300 ? 'good' : report.pageLoad.firstPaint < 500 ? 'warning' : 'error'}">
+                    <span>First Paint:</span><span>${Math.round(report.pageLoad.firstPaint)}ms</span>
+                </div>`;
+            }
+            html += `<div class="metric ${report.pageLoad.bundleSize < 50 ? 'good' : report.pageLoad.bundleSize < 100 ? 'warning' : 'error'}">
+                <span>Bundle Size:</span><span>${report.pageLoad.bundleSize}KB</span>
+            </div>`;
+            html += '</div>';
+
+            // Memory Usage
+            if (report.memory) {
+                html += '<div class="test-section"><h3>💾 Memory</h3>';
+                html += `<div class="metric ${report.memory.used < 10 ? 'good' : report.memory.used < 50 ? 'warning' : 'error'}">
+                    <span>Used:</span><span>${report.memory.used}MB</span>
+                </div>`;
+                html += `<div class="metric">
+                    <span>Total:</span><span>${report.memory.total}MB</span>
+                </div>`;
+                html += '</div>';
+            }
+
+            // Operation Performance
+            html += '<div class="test-section"><h3>⚡ Operations</h3>';
+            Object.entries(report.operations).forEach(([operation, data]) => {
+                const isGood = data.duration < 100;
+                const isWarning = data.duration < 200;
+                const className = isGood ? 'good' : isWarning ? 'warning' : 'error';
+                html += `<div class="metric ${className}">
+                    <span>${operation}:</span><span>${data.duration}ms</span>
+                </div>`;
+            });
+            html += '</div>';
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Clear results
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            perfTester.results = {};
+        }
+
+        // Auto-run basic performance measurement on load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const initialReport = perfTester.generateReport();
+                displayResults(initialReport);
+            }, 1000);
+        });
+
+        // Monitor performance continuously
+        setInterval(() => {
+            const memory = perfTester.measureMemoryUsage();
+            if (memory && memory.used > 50) {
+                console.warn('Memory usage high:', memory.used, 'MB');
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

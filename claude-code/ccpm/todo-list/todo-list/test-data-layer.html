@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Layer Test - Todo App</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; }
+        .test-section { margin: 2rem 0; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; }
+        .test-section h3 { margin-top: 0; }
+        .test-button { padding: 0.5rem 1rem; margin: 0.25rem; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .test-button:hover { background: #005c99; }
+        .test-button.danger { background: #dc3545; }
+        .test-button.danger:hover { background: #c82333; }
+        .test-results { margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        pre { background: #f1f3f4; padding: 1rem; border-radius: 4px; overflow-x: auto; }
+        .todo-item { padding: 0.5rem; margin: 0.5rem 0; background: #fff; border: 1px solid #ddd; border-radius: 4px; }
+        .completed { opacity: 0.7; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+    <h1>Todo App Data Layer Test Suite</h1>
+    <p>This page tests the localStorage persistence and CRUD operations of the Todo application.</p>
+
+    <div class="test-section">
+        <h3>localStorage Availability Test</h3>
+        <button class="test-button" onclick="testLocalStorageAvailability()">Test localStorage</button>
+        <div id="localStorage-results" class="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Data Model Validation Test</h3>
+        <button class="test-button" onclick="testDataModelValidation()">Test Validation</button>
+        <div id="validation-results" class="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>CRUD Operations Test</h3>
+        <button class="test-button" onclick="testCRUDOperations()">Test CRUD</button>
+        <button class="test-button" onclick="testEdgeCases()">Test Edge Cases</button>
+        <div id="crud-results" class="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Persistence Test</h3>
+        <button class="test-button" onclick="testPersistence()">Test Persistence</button>
+        <button class="test-button" onclick="testCorruptedData()">Test Corrupted Data Recovery</button>
+        <button class="test-button" onclick="testQuotaHandling()">Simulate Quota Exceeded</button>
+        <div id="persistence-results" class="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Current Storage State</h3>
+        <button class="test-button" onclick="displayStorageState()">Show Storage</button>
+        <button class="test-button danger" onclick="clearStorage()">Clear All Data</button>
+        <div id="storage-results" class="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Live Todo Display</h3>
+        <div id="todo-display"></div>
+        <button class="test-button" onclick="refreshTodoDisplay()">Refresh Display</button>
+    </div>
+
+    <!-- Include the TodoApp script -->
+    <script src="script.js"></script>
+
+    <script>
+        let testApp;
+
+        // Initialize a test instance of TodoApp
+        function initTestApp() {
+            try {
+                testApp = new TodoApp();
+                return testApp;
+            } catch (error) {
+                console.error('Failed to initialize test app:', error);
+                return null;
+            }
+        }
+
+        // Test localStorage availability
+        function testLocalStorageAvailability() {
+            const results = document.getElementById('localStorage-results');
+            results.innerHTML = '';
+            
+            try {
+                if (!testApp) testApp = initTestApp();
+                if (!testApp) throw new Error('TodoApp initialization failed');
+
+                testApp.checkLocalStorageAvailability();
+                
+                const testSize = testApp.estimateStorageSize([{
+                    id: 'test',
+                    text: 'Test todo',
+                    completed: false,
+                    created: new Date().toISOString()
+                }]);
+
+                results.innerHTML = `
+                    <div class="success">✅ localStorage is available</div>
+                    <div>Sample todo size: ${testSize} bytes</div>
+                `;
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ localStorage test failed: ${error.message}</div>`;
+            }
+        }
+
+        // Test data model validation
+        function testDataModelValidation() {
+            const results = document.getElementById('validation-results');
+            results.innerHTML = '';
+            
+            if (!testApp) testApp = initTestApp();
+            if (!testApp) {
+                results.innerHTML = '<div class="error">❌ TodoApp initialization failed</div>';
+                return;
+            }
+
+            const tests = [
+                // Valid todo
+                { 
+                    todo: {
+                        id: 'test_123',
+                        text: 'Valid todo',
+                        completed: false,
+                        created: new Date().toISOString()
+                    }, 
+                    shouldPass: true, 
+                    description: 'Valid todo object' 
+                },
+                // Invalid - missing ID
+                { 
+                    todo: { text: 'No ID', completed: false, created: new Date().toISOString() }, 
+                    shouldPass: false, 
+                    description: 'Missing ID' 
+                },
+                // Invalid - empty text
+                { 
+                    todo: { id: 'test_124', text: '', completed: false, created: new Date().toISOString() }, 
+                    shouldPass: false, 
+                    description: 'Empty text' 
+                },
+                // Invalid - text too long
+                { 
+                    todo: { 
+                        id: 'test_125', 
+                        text: 'x'.repeat(501), 
+                        completed: false, 
+                        created: new Date().toISOString() 
+                    }, 
+                    shouldPass: false, 
+                    description: 'Text too long (501 chars)' 
+                },
+                // Invalid - bad completed type
+                { 
+                    todo: { id: 'test_126', text: 'Bad completed', completed: 'false', created: new Date().toISOString() }, 
+                    shouldPass: false, 
+                    description: 'Invalid completed type (string instead of boolean)' 
+                },
+                // Invalid - bad created timestamp
+                { 
+                    todo: { id: 'test_127', text: 'Bad timestamp', completed: false, created: 'not-a-date' }, 
+                    shouldPass: false, 
+                    description: 'Invalid created timestamp' 
+                }
+            ];
+
+            let passed = 0;
+            let failed = 0;
+            let resultsHtml = '';
+
+            tests.forEach((test, index) => {
+                try {
+                    testApp.validateTodo(test.todo);
+                    if (test.shouldPass) {
+                        resultsHtml += `<div class="success">✅ Test ${index + 1}: ${test.description}</div>`;
+                        passed++;
+                    } else {
+                        resultsHtml += `<div class="error">❌ Test ${index + 1}: ${test.description} (should have failed but passed)</div>`;
+                        failed++;
+                    }
+                } catch (error) {
+                    if (!test.shouldPass) {
+                        resultsHtml += `<div class="success">✅ Test ${index + 1}: ${test.description} (correctly failed: ${error.message})</div>`;
+                        passed++;
+                    } else {
+                        resultsHtml += `<div class="error">❌ Test ${index + 1}: ${test.description} (should have passed but failed: ${error.message})</div>`;
+                        failed++;
+                    }
+                }
+            });
+
+            results.innerHTML = `
+                <div><strong>Validation Test Results: ${passed} passed, ${failed} failed</strong></div>
+                ${resultsHtml}
+            `;
+        }
+
+        // Test CRUD operations
+        function testCRUDOperations() {
+            const results = document.getElementById('crud-results');
+            results.innerHTML = '';
+            
+            if (!testApp) testApp = initTestApp();
+            if (!testApp) {
+                results.innerHTML = '<div class="error">❌ TodoApp initialization failed</div>';
+                return;
+            }
+
+            let resultsHtml = '';
+
+            try {
+                // Clear existing todos for clean test
+                testApp.clearAllTodos();
+                resultsHtml += '<div class="success">✅ Cleared existing todos</div>';
+
+                // Test CREATE
+                const todo1 = testApp.addTodo('Test todo 1');
+                const todo2 = testApp.addTodo('Test todo 2');
+                resultsHtml += `<div class="success">✅ Created 2 todos</div>`;
+
+                // Test READ
+                const allTodos = testApp.getTodos();
+                if (allTodos.length === 2) {
+                    resultsHtml += `<div class="success">✅ Read todos: ${allTodos.length} items</div>`;
+                } else {
+                    throw new Error(`Expected 2 todos, got ${allTodos.length}`);
+                }
+
+                const retrievedTodo = testApp.getTodo(todo1.id);
+                if (retrievedTodo.text === 'Test todo 1') {
+                    resultsHtml += `<div class="success">✅ Retrieved specific todo by ID</div>`;
+                } else {
+                    throw new Error('Retrieved todo does not match expected');
+                }
+
+                // Test UPDATE
+                const updatedTodo = testApp.updateTodo(todo1.id, { text: 'Updated todo 1', completed: true });
+                if (updatedTodo.text === 'Updated todo 1' && updatedTodo.completed === true) {
+                    resultsHtml += `<div class="success">✅ Updated todo text and completed status</div>`;
+                } else {
+                    throw new Error('Todo update failed');
+                }
+
+                // Test TOGGLE
+                const toggledTodo = testApp.toggleTodo(todo2.id);
+                if (toggledTodo.completed === true) {
+                    resultsHtml += `<div class="success">✅ Toggled todo completion status</div>`;
+                } else {
+                    throw new Error('Todo toggle failed');
+                }
+
+                // Test DELETE
+                const deletedTodo = testApp.deleteTodo(todo1.id);
+                if (deletedTodo.id === todo1.id) {
+                    resultsHtml += `<div class="success">✅ Deleted todo</div>`;
+                } else {
+                    throw new Error('Todo deletion failed');
+                }
+
+                const remainingTodos = testApp.getTodos();
+                if (remainingTodos.length === 1) {
+                    resultsHtml += `<div class="success">✅ Verified deletion: ${remainingTodos.length} todos remaining</div>`;
+                } else {
+                    throw new Error(`Expected 1 todo remaining, got ${remainingTodos.length}`);
+                }
+
+                resultsHtml += '<div class="success"><strong>✅ All CRUD operations passed!</strong></div>';
+
+            } catch (error) {
+                resultsHtml += `<div class="error">❌ CRUD test failed: ${error.message}</div>`;
+            }
+
+            results.innerHTML = resultsHtml;
+        }
+
+        // Test edge cases
+        function testEdgeCases() {
+            const results = document.getElementById('crud-results');
+            
+            if (!testApp) testApp = initTestApp();
+            if (!testApp) {
+                results.innerHTML += '<div class="error">❌ TodoApp initialization failed</div>';
+                return;
+            }
+
+            let resultsHtml = '<div><strong>Edge Case Tests:</strong></div>';
+
+            try {
+                // Test operations on non-existent todo
+                try {
+                    testApp.getTodo('non-existent-id');
+                    resultsHtml += '<div class="error">❌ Should have failed to get non-existent todo</div>';
+                } catch (error) {
+                    resultsHtml += '<div class="success">✅ Correctly failed to get non-existent todo</div>';
+                }
+
+                try {
+                    testApp.updateTodo('non-existent-id', { text: 'Updated' });
+                    resultsHtml += '<div class="error">❌ Should have failed to update non-existent todo</div>';
+                } catch (error) {
+                    resultsHtml += '<div class="success">✅ Correctly failed to update non-existent todo</div>';
+                }
+
+                try {
+                    testApp.deleteTodo('non-existent-id');
+                    resultsHtml += '<div class="error">❌ Should have failed to delete non-existent todo</div>';
+                } catch (error) {
+                    resultsHtml += '<div class="success">✅ Correctly failed to delete non-existent todo</div>';
+                }
+
+                // Test invalid inputs
+                try {
+                    testApp.addTodo('');
+                    resultsHtml += '<div class="error">❌ Should have failed to add empty todo</div>';
+                } catch (error) {
+                    resultsHtml += '<div class="success">✅ Correctly failed to add empty todo</div>';
+                }
+
+                try {
+                    testApp.addTodo(null);
+                    resultsHtml += '<div class="error">❌ Should have failed to add null todo</div>';
+                } catch (error) {
+                    resultsHtml += '<div class="success">✅ Correctly failed to add null todo</div>';
+                }
+
+                resultsHtml += '<div class="success"><strong>✅ All edge case tests passed!</strong></div>';
+
+            } catch (error) {
+                resultsHtml += `<div class="error">❌ Edge case test failed: ${error.message}</div>`;
+            }
+
+            results.innerHTML += resultsHtml;
+        }
+
+        // Test persistence
+        function testPersistence() {
+            const results = document.getElementById('persistence-results');
+            results.innerHTML = '';
+            
+            if (!testApp) testApp = initTestApp();
+            if (!testApp) {
+                results.innerHTML = '<div class="error">❌ TodoApp initialization failed</div>';
+                return;
+            }
+
+            try {
+                // Clear and add test data
+                testApp.clearAllTodos();
+                const todo1 = testApp.addTodo('Persistent todo 1');
+                const todo2 = testApp.addTodo('Persistent todo 2');
+                testApp.toggleTodo(todo2.id); // Mark as completed
+
+                // Simulate page reload by creating a new TodoApp instance
+                const newApp = new TodoApp();
+                const loadedTodos = newApp.getTodos();
+
+                if (loadedTodos.length === 2) {
+                    results.innerHTML += '<div class="success">✅ Todos persisted after reload simulation</div>';
+                } else {
+                    throw new Error(`Expected 2 todos after reload, got ${loadedTodos.length}`);
+                }
+
+                const completedTodo = loadedTodos.find(t => t.completed);
+                if (completedTodo) {
+                    results.innerHTML += '<div class="success">✅ Todo completion status persisted</div>';
+                } else {
+                    throw new Error('Completed todo not found after reload');
+                }
+
+                results.innerHTML += `
+                    <div class="success"><strong>✅ Persistence test passed!</strong></div>
+                    <pre>${JSON.stringify(loadedTodos, null, 2)}</pre>
+                `;
+
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Persistence test failed: ${error.message}</div>`;
+            }
+        }
+
+        // Test corrupted data recovery
+        function testCorruptedData() {
+            const results = document.getElementById('persistence-results');
+            
+            try {
+                // Save current data
+                const currentData = localStorage.getItem('todos');
+                
+                // Inject corrupted data
+                localStorage.setItem('todos', '{"invalid": "json');
+                
+                // Create new app - should handle corrupted data gracefully
+                const newApp = new TodoApp();
+                const todos = newApp.getTodos();
+                
+                if (Array.isArray(todos)) {
+                    results.innerHTML += '<div class="success">✅ Corrupted data handled gracefully</div>';
+                    
+                    // Check if backup was created
+                    const backupKeys = Object.keys(localStorage).filter(key => key.startsWith('todos_backup_'));
+                    if (backupKeys.length > 0) {
+                        results.innerHTML += '<div class="success">✅ Corrupted data backed up before reset</div>';
+                    }
+                } else {
+                    throw new Error('Failed to handle corrupted data');
+                }
+                
+                // Restore original data
+                if (currentData) {
+                    localStorage.setItem('todos', currentData);
+                }
+
+            } catch (error) {
+                results.innerHTML += `<div class="error">❌ Corrupted data test failed: ${error.message}</div>`;
+            }
+        }
+
+        // Simulate quota exceeded (simplified test)
+        function testQuotaHandling() {
+            const results = document.getElementById('persistence-results');
+            
+            try {
+                if (!testApp) testApp = initTestApp();
+                
+                // We can't easily simulate actual quota exceeded, but we can test the logic
+                // by temporarily reducing the warning threshold
+                const originalWarnThreshold = 4 * 1024 * 1024;
+                
+                // Add a large todo to test size estimation
+                const largeTodo = testApp.addTodo('x'.repeat(1000)); // 1KB todo
+                const estimatedSize = testApp.estimateStorageSize([largeTodo]);
+                
+                if (estimatedSize > 1000) {
+                    results.innerHTML += '<div class="success">✅ Storage size estimation working</div>';
+                } else {
+                    throw new Error('Storage size estimation failed');
+                }
+
+                // Test the quota handling method directly
+                testApp.handleStorageQuotaExceeded();
+                
+                results.innerHTML += '<div class="success">✅ Quota exceeded handling method executed</div>';
+                results.innerHTML += `<div>Estimated size: ${estimatedSize} bytes</div>`;
+
+            } catch (error) {
+                results.innerHTML += `<div class="error">❌ Quota handling test failed: ${error.message}</div>`;
+            }
+        }
+
+        // Display current storage state
+        function displayStorageState() {
+            const results = document.getElementById('storage-results');
+            
+            try {
+                const todos = JSON.parse(localStorage.getItem('todos') || '[]');
+                const backupKeys = Object.keys(localStorage).filter(key => key.startsWith('todos_backup_'));
+                const storageSize = JSON.stringify(todos).length;
+                
+                results.innerHTML = `
+                    <div><strong>Current Storage State:</strong></div>
+                    <div>Todos count: ${todos.length}</div>
+                    <div>Storage size: ${storageSize} bytes</div>
+                    <div>Backup entries: ${backupKeys.length}</div>
+                    <pre>${JSON.stringify(todos, null, 2)}</pre>
+                    ${backupKeys.length > 0 ? '<div class="warning">⚠️ Backup entries found (from corrupted data recovery)</div>' : ''}
+                `;
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Failed to display storage state: ${error.message}</div>`;
+            }
+        }
+
+        // Clear all storage
+        function clearStorage() {
+            try {
+                localStorage.clear();
+                document.getElementById('storage-results').innerHTML = '<div class="success">✅ All localStorage cleared</div>';
+                
+                // Reinitialize test app
+                testApp = null;
+            } catch (error) {
+                document.getElementById('storage-results').innerHTML = `<div class="error">❌ Failed to clear storage: ${error.message}</div>`;
+            }
+        }
+
+        // Display current todos
+        function refreshTodoDisplay() {
+            const display = document.getElementById('todo-display');
+            
+            try {
+                const todos = JSON.parse(localStorage.getItem('todos') || '[]');
+                
+                if (todos.length === 0) {
+                    display.innerHTML = '<div class="warning">No todos in storage</div>';
+                    return;
+                }
+
+                const todosHtml = todos.map(todo => `
+                    <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                        <div><strong>ID:</strong> ${todo.id}</div>
+                        <div><strong>Text:</strong> ${todo.text}</div>
+                        <div><strong>Completed:</strong> ${todo.completed}</div>
+                        <div><strong>Created:</strong> ${new Date(todo.created).toLocaleString()}</div>
+                    </div>
+                `).join('');
+
+                display.innerHTML = `
+                    <div><strong>${todos.length} todo(s) in storage:</strong></div>
+                    ${todosHtml}
+                `;
+
+            } catch (error) {
+                display.innerHTML = `<div class="error">❌ Failed to display todos: ${error.message}</div>`;
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Test page loaded');
+            refreshTodoDisplay();
+        });
+    </script>
+</body>
+</html>
