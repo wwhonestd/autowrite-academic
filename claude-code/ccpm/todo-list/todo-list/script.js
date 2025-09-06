@@ -111,8 +111,39 @@ class TodoApp {
                 const todoItem = e.target.closest('.todo-item');
                 const todoId = todoItem.dataset.id;
                 this.handleDeleteTodo(todoId);
+            } else if (e.target.matches('.todo-edit') || e.target.closest('.todo-edit')) {
+                const todoItem = e.target.closest('.todo-item');
+                const todoId = todoItem.dataset.id;
+                this.handleEditTodo(todoId);
+            } else if (e.target.matches('.todo-text') && !e.target.closest('.todo-item').classList.contains('editing')) {
+                const todoItem = e.target.closest('.todo-item');
+                const todoId = todoItem.dataset.id;
+                this.handleEditTodo(todoId);
             }
         });
+
+        // Handle keyboard events for edit mode
+        this.elements.todoList.addEventListener('keydown', (e) => {
+            if (e.target.matches('.todo-edit-input')) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handleSaveEdit(e.target);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.handleCancelEdit(e.target);
+                }
+            }
+        });
+
+        // Handle blur for edit mode
+        this.elements.todoList.addEventListener('blur', (e) => {
+            if (e.target.matches('.todo-edit-input')) {
+                // Small delay to allow click events to fire first
+                setTimeout(() => {
+                    this.handleSaveEdit(e.target);
+                }, 100);
+            }
+        }, true);
     }
 
     /**
@@ -235,6 +266,11 @@ class TodoApp {
             const todo = this.todos[todoIndex];
             const todoText = todo.text;
             
+            // Show confirmation dialog
+            if (!this.showConfirmDialog(`Delete "${todoText}"?`, 'This action cannot be undone.')) {
+                return;
+            }
+            
             // Remove todo from array
             this.todos.splice(todoIndex, 1);
             
@@ -244,6 +280,127 @@ class TodoApp {
             this.showMessage(`Deleted: "${todoText}"`, 'success');
         } catch (error) {
             this.handleError('Failed to delete todo', error);
+        }
+    }
+
+    /**
+     * Handle editing a todo
+     */
+    handleEditTodo(todoId) {
+        try {
+            const todoItem = document.querySelector(`[data-id="${todoId}"]`);
+            if (!todoItem) {
+                throw new Error(`Todo item not found in DOM: ${todoId}`);
+            }
+
+            // Check if already editing
+            if (todoItem.classList.contains('editing')) {
+                return;
+            }
+
+            const todo = this.todos.find(t => t.id === todoId);
+            if (!todo) {
+                throw new Error(`Todo not found: ${todoId}`);
+            }
+
+            // Add editing class
+            todoItem.classList.add('editing');
+
+            // Find the text element and replace with input
+            const textElement = todoItem.querySelector('.todo-text');
+            if (!textElement) {
+                throw new Error('Todo text element not found');
+            }
+
+            const currentText = todo.text;
+            textElement.innerHTML = `<input type="text" class="todo-edit-input" value="${this.escapeHtml(currentText)}" data-original-text="${this.escapeHtml(currentText)}" maxlength="${this.MAX_TEXT_LENGTH}">`;
+
+            // Focus the input and select all text
+            const input = textElement.querySelector('.todo-edit-input');
+            input.focus();
+            input.select();
+
+        } catch (error) {
+            this.handleError('Failed to start editing todo', error);
+        }
+    }
+
+    /**
+     * Handle saving an edit
+     */
+    handleSaveEdit(input) {
+        try {
+            if (!input || !input.classList.contains('todo-edit-input')) {
+                return;
+            }
+
+            const todoItem = input.closest('.todo-item');
+            if (!todoItem) {
+                throw new Error('Todo item not found');
+            }
+
+            const todoId = todoItem.dataset.id;
+            const newText = input.value.trim();
+            const originalText = input.dataset.originalText || '';
+
+            // If text hasn't changed, just cancel
+            if (newText === originalText) {
+                this.handleCancelEdit(input);
+                return;
+            }
+
+            // Validate new text
+            if (!newText) {
+                this.showMessage('Todo text cannot be empty', 'warning');
+                input.focus();
+                return;
+            }
+
+            if (newText.length > this.MAX_TEXT_LENGTH) {
+                this.showMessage(`Todo text cannot exceed ${this.MAX_TEXT_LENGTH} characters`, 'warning');
+                input.focus();
+                return;
+            }
+
+            // Update the todo
+            this.updateTodo(todoId, { text: newText });
+            
+            // Remove editing state
+            todoItem.classList.remove('editing');
+            
+            // Re-render to show updated text
+            this.render();
+            
+            this.showMessage(`Updated: "${newText}"`, 'success');
+
+        } catch (error) {
+            this.handleError('Failed to save todo edit', error);
+            this.handleCancelEdit(input);
+        }
+    }
+
+    /**
+     * Handle canceling an edit
+     */
+    handleCancelEdit(input) {
+        try {
+            if (!input || !input.classList.contains('todo-edit-input')) {
+                return;
+            }
+
+            const todoItem = input.closest('.todo-item');
+            if (!todoItem) {
+                return;
+            }
+
+            // Remove editing state
+            todoItem.classList.remove('editing');
+            
+            // Re-render to restore original text
+            this.render();
+
+        } catch (error) {
+            this.handleError('Failed to cancel todo edit', error);
         }
     }
 
@@ -493,6 +650,9 @@ class TodoApp {
      * Get todo item HTML
      */
     getTodoHTML(todo) {
+        const createdDate = new Date(todo.created);
+        const timeAgo = this.getTimeAgo(createdDate);
+        
         return `
             <li class="todo-item ${todo.completed ? 'completed' : ''}" data-id="${todo.id}">
                 <div class="todo-content">
@@ -503,11 +663,17 @@ class TodoApp {
                             ${todo.completed ? 'checked' : ''}
                             aria-label="Mark as ${todo.completed ? 'incomplete' : 'complete'}"
                         >
-                        <span class="todo-text">${this.escapeHtml(todo.text)}</span>
+                        <span class="todo-text" title="Click to edit">${this.escapeHtml(todo.text)}</span>
                     </label>
+                    <div class="todo-meta">
+                        <span class="todo-timestamp" title="Created ${createdDate.toLocaleString()}">${timeAgo}</span>
+                    </div>
                 </div>
                 <div class="todo-actions">
-                    <button class="todo-delete" aria-label="Delete todo: ${this.escapeHtml(todo.text)}">
+                    <button class="todo-edit" aria-label="Edit todo: ${this.escapeHtml(todo.text)}" title="Edit">
+                        <span aria-hidden="true">✏️</span>
+                    </button>
+                    <button class="todo-delete" aria-label="Delete todo: ${this.escapeHtml(todo.text)}" title="Delete">
                         <span aria-hidden="true">×</span>
                     </button>
                 </div>
@@ -800,6 +966,13 @@ class TodoApp {
     }
 
     /**
+     * Show a confirmation dialog
+     */
+    showConfirmDialog(title, message) {
+        return confirm(`${title}\n\n${message}`);
+    }
+
+    /**
      * Show a message to the user
      */
     showMessage(message, type = 'info') {
@@ -821,6 +994,41 @@ class TodoApp {
         if (typeof window.reportError === 'function') {
             window.reportError(context, error);
         }
+    }
+
+    /**
+     * Get relative time string (e.g., "2 minutes ago")
+     */
+    getTimeAgo(date) {
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+
+        if (diffInSeconds < 60) {
+            return diffInSeconds < 5 ? 'just now' : `${diffInSeconds}s ago`;
+        }
+
+        const diffInMinutes = Math.floor(diffInSeconds / 60);
+        if (diffInMinutes < 60) {
+            return `${diffInMinutes}m ago`;
+        }
+
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        if (diffInHours < 24) {
+            return `${diffInHours}h ago`;
+        }
+
+        const diffInDays = Math.floor(diffInHours / 24);
+        if (diffInDays < 7) {
+            return `${diffInDays}d ago`;
+        }
+
+        const diffInWeeks = Math.floor(diffInDays / 7);
+        if (diffInWeeks < 4) {
+            return `${diffInWeeks}w ago`;
+        }
+
+        // For older items, show the date
+        return date.toLocaleDateString();
     }
 
     /**
