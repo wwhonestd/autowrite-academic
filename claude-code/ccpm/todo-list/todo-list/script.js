@@ -630,17 +630,32 @@ class TodoApp {
      * Get empty state HTML
      */
     getEmptyStateHTML() {
-        const messages = {
-            all: 'No todos yet. Add one above!',
-            active: 'No active todos. Great job!',
-            completed: 'No completed todos yet.'
+        const stateConfig = {
+            all: {
+                icon: '📝',
+                title: 'Your todo list is empty',
+                message: 'Add your first task to get started with staying organized!'
+            },
+            active: {
+                icon: '🎉',
+                title: 'All done!',
+                message: 'You have no active tasks. Time to celebrate or add something new!'
+            },
+            completed: {
+                icon: '✨',
+                title: 'No completed tasks yet',
+                message: 'Complete some tasks to see them here. You got this!'
+            }
         };
 
+        const state = stateConfig[this.currentFilter];
+        
         return `
             <li class="empty-state">
                 <div class="empty-message">
-                    <span class="empty-icon">📝</span>
-                    <p>${messages[this.currentFilter]}</p>
+                    <span class="empty-icon">${state.icon}</span>
+                    <h3>${state.title}</h3>
+                    <p>${state.message}</p>
                 </div>
             </li>
         `;

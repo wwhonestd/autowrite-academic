@@ -855,3 +855,123 @@ body {
         --container-max-width: 1200px;
     }
 }
+
+/* ========================================
+   Accessibility Enhancements
+======================================== */
+
+/* High contrast focus indicators */
+*:focus {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* Enhanced focus for interactive elements */
+.todo-input:focus,
+.add-btn:focus,
+.filter-btn:focus,
+.bulk-action-btn:focus {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
+}
+
+.todo-checkbox:focus {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 4px;
+}
+
+.todo-edit:focus,
+.todo-delete:focus {
+    outline: 3px solid currentColor;
+    outline-offset: 3px;
+}
+
+/* Focus within for compound components */
+.todo-item:focus-within {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+
+.todo-item:focus-within::before {
+    opacity: 1;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .todo-item:hover {
+        transform: none;
+    }
+    
+    .add-btn:hover,
+    .todo-edit:hover,
+    .todo-delete:hover,
+    .bulk-action-btn:hover:not(:disabled) {
+        transform: none;
+    }
+    
+    .todo-checkbox:hover {
+        transform: scale(1);
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --color-gray-200: #000000;
+        --color-gray-300: #333333;
+        --color-gray-400: #666666;
+    }
+    
+    .todo-input-section,
+    .todo-list-section {
+        border: 2px solid var(--color-gray-800);
+        background: var(--color-white);
+        backdrop-filter: none;
+    }
+    
+    .todo-item {
+        border-bottom: 2px solid var(--color-gray-300);
+    }
+    
+    .filter-btn.active {
+        background: var(--color-gray-900);
+        border: 2px solid var(--color-white);
+    }
+}
+
+/* Screen reader improvements */
+.sr-only:not(:focus):not(:active) {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: var(--color-primary);
+    color: var(--color-white);
+    padding: 8px;
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    z-index: 1000;
+    font-weight: var(--font-weight-semibold);
+}
+
+.skip-link:focus {
+    top: 6px;
+}
