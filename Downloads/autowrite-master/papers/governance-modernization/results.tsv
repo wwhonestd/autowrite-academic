@@ -1,3 +1,4 @@
 iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	da199914	-	-	-	kb_sync	-	raw/ synced
 0	baseline	-	8	-	baseline	dry_run	大纲骨架完成；clarity 最强（3），counterargument 最弱（0）；总分 8/18，优先改进 P0 证据和 P1 反驳
+-	420ff642	-	-	-	kb_sync	-	raw/ synced
