@@ -25,10 +25,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.agents import OrchestratorAgent, ResearcherAgent, WriterAgent, CriticAgent, ValidatorAgent
+
 PAPERS = ROOT / "papers"
 CURRENT = PAPERS / ".current"
 RAW = ROOT / "raw"
 BUILD_SCRIPT = ROOT / "scripts" / "build_paper_graph.py"
+STATE_DIR = ROOT / ".autowrite"
+AGENTS_STATE = STATE_DIR / "agents.json"
 
 RESULTS_HEADER = "iteration\tcommit\told_score\tnew_score\tdimension\tstatus\teval_mode\tnote\n"
 
@@ -93,6 +96,32 @@ agent_instances = {}
 orchestrator_instance = None
 
 
+def ensure_state_dir():
+    STATE_DIR.mkdir(exist_ok=True)
+
+
+def load_agents_state():
+    ensure_state_dir()
+    if not AGENTS_STATE.exists():
+        return {"agents": []}
+    try:
+        return json.loads(AGENTS_STATE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"agents": []}
+
+
+def save_agents_state(state):
+    ensure_state_dir()
+    AGENTS_STATE.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _find_agent_record(state, agent_id):
+    for record in state.get("agents", []):
+        if record.get("agent_id") == agent_id:
+            return record
+    return None
+
+
 def start_agent(agent_type, agent_id=None):
     global orchestrator_instance
     cls_map = {
@@ -106,9 +135,12 @@ def start_agent(agent_type, agent_id=None):
     if not cls:
         sys.exit(f"error: unknown agent type: {agent_type}")
 
-    if agent_type == "orchestrator" and orchestrator_instance is not None:
-        print(f"orchestrator already running: {orchestrator_instance}")
-        return orchestrator_instance
+    state = load_agents_state()
+    if agent_type == "orchestrator":
+        existing = next((a for a in state.get("agents", []) if a.get("type") == "orchestrator"), None)
+        if existing:
+            print(f"orchestrator already registered: {existing['agent_id']}")
+            return existing
 
     agent = cls(agent_id)
     agent_instances[agent.agent_id] = agent
@@ -118,29 +150,77 @@ def start_agent(agent_type, agent_id=None):
     elif orchestrator_instance is not None:
         orchestrator_instance.register_agent(agent)
 
+    state.setdefault("agents", []).append({
+        "agent_id": agent.agent_id,
+        "type": agent_type,
+        "name": agent.name,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "status": "running",
+    })
+    save_agents_state(state)
     print(f"started {agent.name}: {agent.agent_id}")
     return agent
 
 
 def stop_agent(agent_id):
     global orchestrator_instance
-    agent = agent_instances.get(agent_id)
-    if not agent:
+    state = load_agents_state()
+    record = _find_agent_record(state, agent_id)
+    if not record:
         sys.exit(f"error: agent not found: {agent_id}")
-    agent.stop()
-    del agent_instances[agent_id]
-    if orchestrator_instance and orchestrator_instance.agent_id == agent_id:
+
+    agent = agent_instances.get(agent_id)
+    if agent is not None:
+        agent.stop()
+        del agent_instances[agent_id]
+
+    state["agents"] = [a for a in state.get("agents", []) if a.get("agent_id") != agent_id]
+    save_agents_state(state)
+
+    if orchestrator_instance and getattr(orchestrator_instance, "agent_id", None) == agent_id:
         orchestrator_instance = None
     print(f"stopped agent: {agent_id}")
 
 
 def list_agents_cmd():
-    if not agent_instances:
+    state = load_agents_state()
+    agents = state.get("agents", [])
+    if not agents:
         print("no running agents")
         return
-    for agent_id, agent in agent_instances.items():
-        print(f"{agent.name}\t{agent_id}")
+    for record in agents:
+        print(f"{record['name']}\t{record['type']}\t{record['agent_id']}\t{record['status']}")
 
+
+def ensure_default_orchestrator():
+    state = load_agents_state()
+    existing = next((a for a in state.get("agents", []) if a.get("type") == "orchestrator"), None)
+    if existing:
+        return existing
+    return start_agent("orchestrator")
+
+
+def run_research(topic):
+    ensure_default_orchestrator()
+    researcher = start_agent("researcher")
+    if isinstance(researcher, dict):
+        # persistent record returned; reconstruct lightweight runtime agent
+        researcher = ResearcherAgent(researcher.get("agent_id"))
+
+    questions = researcher.generate_research_questions(topic)
+    evidence_by_question = []
+    for question in questions:
+        findings = researcher.retrieve_evidence(question)
+        evidence_by_question.append({
+            "question": question,
+            "findings": findings,
+        })
+
+    print(json.dumps({
+        "topic": topic,
+        "questions": questions,
+        "evidence": evidence_by_question,
+    }, ensure_ascii=False, indent=2))
 
 def run_git(*args, check=False):
     try:
@@ -454,6 +534,13 @@ def main():
 
     asp = agent_sub.add_parser("list", help="list running agents")
     asp.set_defaults(func=lambda args: list_agents_cmd())
+
+    asp = agent_sub.add_parser("run", help="run an agent workflow")
+    run_sub = asp.add_subparsers(dest="run_cmd", required=True)
+
+    rsp = run_sub.add_parser("research", help="run basic research workflow")
+    rsp.add_argument("--topic", required=True)
+    rsp.set_defaults(func=lambda args: run_research(args.topic))
 
     args = p.parse_args()
     args.func(args)
