@@ -329,11 +329,11 @@ def append_research_to_results(slug, payload):
     return results_path
 
 
-def append_generic_result(slug, dimension, status, eval_mode, note):
+def append_generic_result(slug, dimension, status, eval_mode, note, old_score="-", new_score="-"):
     _, results_path = ensure_research_artifacts(slug)
     head = run_git("rev-parse", "--short", "HEAD").strip() or "-"
     with results_path.open("a", encoding="utf-8") as f:
-        f.write(f"-\t{head}\t-\t-\t{dimension}\t{status}\t{eval_mode}\t{note}\n")
+        f.write(f"-\t{head}\t{old_score}\t{new_score}\t{dimension}\t{status}\t{eval_mode}\t{note}\n")
     return results_path
 
 
@@ -420,18 +420,82 @@ def score_current_paper():
 
     critiques_dir = paper_dir(paper_ctx["slug"]) / "critiques"
     validations_dir = paper_dir(paper_ctx["slug"]) / "validations"
-    latest_critique = sorted(critiques_dir.glob("*.json"))[-1] if critiques_dir.exists() and list(critiques_dir.glob("*.json")) else None
-    latest_validation = sorted(validations_dir.glob("*.json"))[-1] if validations_dir.exists() and list(validations_dir.glob("*.json")) else None
+    scores_dir = paper_dir(paper_ctx["slug"]) / "scores"
+
+    critique_files = sorted(critiques_dir.glob("*.json")) if critiques_dir.exists() else []
+    validation_files = sorted(validations_dir.glob("*.json")) if validations_dir.exists() else []
+    score_files = sorted(scores_dir.glob("*.json")) if scores_dir.exists() else []
+
+    latest_critique = critique_files[-1] if critique_files else None
+    latest_validation = validation_files[-1] if validation_files else None
+    previous_score_file = score_files[-1] if score_files else None
 
     critique_data = json.loads(latest_critique.read_text(encoding="utf-8")) if latest_critique else {}
     validation_data = json.loads(latest_validation.read_text(encoding="utf-8")) if latest_validation else {}
+    previous_score = json.loads(previous_score_file.read_text(encoding="utf-8")).get("total", 0) if previous_score_file else 0
 
-    evidence_grounding = 1 if len(graph.get("nodes", [])) > 0 else 0
-    citation_validity = 1 if validation_data.get("result", {}).get("validity_score", 0) >= 0.5 else 0
-    argument_chain = 1 if "## " in text else 0
-    counterargument = 1 if critique_data.get("result", {}).get("scores", {}).get("argument_strength", 0) >= 1 else 0
-    clarity = 1 if critique_data.get("result", {}).get("scores", {}).get("clarity", 0) >= 1 else 0
-    graph_coherence = 1 if len(graph.get("edges", [])) > 0 else 0
+    node_count = len(graph.get("nodes", []))
+    edge_count = len(graph.get("edges", []))
+    heading_count = len(re.findall(r"^##\s+", text, re.MULTILINE))
+    paragraph_count = len([p for p in text.split("\n\n") if p.strip()])
+    clarity_hint = critique_data.get("result", {}).get("scores", {}).get("clarity", 0)
+    argument_hint = critique_data.get("result", {}).get("scores", {}).get("argument_strength", 0)
+    validity_score = validation_data.get("result", {}).get("validity_score", 0)
+    validation_items = validation_data.get("validated_items", 0)
+
+    if node_count >= 20:
+        evidence_grounding = 3
+    elif node_count >= 10:
+        evidence_grounding = 2
+    elif node_count >= 1:
+        evidence_grounding = 1
+    else:
+        evidence_grounding = 0
+
+    if validation_items >= 5 and validity_score >= 0.9:
+        citation_validity = 3
+    elif validation_items >= 1 and validity_score >= 0.75:
+        citation_validity = 2
+    elif latest_validation is not None:
+        citation_validity = 1
+    else:
+        citation_validity = 0
+
+    if heading_count >= 6 and paragraph_count >= 8:
+        argument_chain = 3
+    elif heading_count >= 4 and paragraph_count >= 5:
+        argument_chain = 2
+    elif heading_count >= 1:
+        argument_chain = 1
+    else:
+        argument_chain = 0
+
+    if argument_hint >= 3:
+        counterargument = 3
+    elif argument_hint >= 2:
+        counterargument = 2
+    elif latest_critique is not None:
+        counterargument = 1
+    else:
+        counterargument = 0
+
+    if clarity_hint >= 3:
+        clarity = 3
+    elif clarity_hint >= 2:
+        clarity = 2
+    elif paragraph_count >= 3:
+        clarity = 1
+    else:
+        clarity = 0
+
+    if edge_count >= 15:
+        graph_coherence = 3
+    elif edge_count >= 5:
+        graph_coherence = 2
+    elif edge_count >= 1:
+        graph_coherence = 1
+    else:
+        graph_coherence = 0
 
     total = evidence_grounding + citation_validity + argument_chain + counterargument + clarity + graph_coherence
     payload = {
@@ -444,12 +508,21 @@ def score_current_paper():
             "clarity": clarity,
             "graph_coherence": graph_coherence,
         },
+        "old_total": previous_score,
         "total": total,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
     out = save_artifact(paper_ctx["slug"], "scores", payload)
     payload["saved_to"] = str(out.relative_to(ROOT))
-    append_generic_result(paper_ctx["slug"], "score", "recorded", "agent_run", f"rubric score total={total}/6")
+    append_generic_result(
+        paper_ctx["slug"],
+        "score",
+        "recorded",
+        "agent_run",
+        f"rubric score total={total}/18",
+        old_score=previous_score,
+        new_score=total,
+    )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
