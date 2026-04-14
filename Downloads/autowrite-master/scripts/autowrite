@@ -1,0 +1,391 @@
+#!/usr/bin/env python3
+"""autowrite — multi-paper management CLI (Python stdlib only).
+
+Subcommands:
+    new <slug>       Scaffold a new paper under papers/<slug>/
+    switch <slug>    Set papers/.current to <slug>
+    status           Show current paper + recent iterations
+    list             List all papers with their titles
+    validate         Integrity checks on current paper
+    kb-sync          Incremental knowledge graph update from raw/
+
+Design: one source of truth per paper (papers/<slug>/paper.md frontmatter).
+Zero external deps. Reuses git for history and incremental diffing.
+"""
+import argparse
+import json
+import re
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+PAPERS = ROOT / "papers"
+CURRENT = PAPERS / ".current"
+RAW = ROOT / "raw"
+BUILD_SCRIPT = ROOT / "scripts" / "build_paper_graph.py"
+
+RESULTS_HEADER = "iteration\tcommit\told_score\tnew_score\tdimension\tstatus\teval_mode\tnote\n"
+
+PAPER_TEMPLATE = """---
+slug: {slug}
+title: {title}
+thesis: "[待填写 — 一句话核心论点。所有 edit 必须服务于它，否则 discard。]"
+scope_in: []
+scope_out: []
+audience: "[目标读者]"
+contribution: empirical
+branch_baseline: {branch}
+raw_subset: []
+created_at: {date}
+---
+
+# {title}
+
+## Abstract
+
+[待证据收集完成后由 agent 撰写]
+
+## 1. Introduction
+
+## 2. Literature Review
+
+## 3. Framework
+
+## 4. Methodology
+
+## 5. Findings
+
+## 6. Discussion
+
+## 7. Conclusion
+
+## References
+"""
+
+READER_PROMPTS_TEMPLATE = """# Reader Prompts — {title}
+
+> 3–5 条对抗性读者问题。每 3 轮 keep 后，独立子 agent 用这些 prompt 测试 paper.md。
+
+## P1. 核心质疑
+持相反立场的审稿人会如何反驳本文的 thesis？本文在哪一节作出了回应？
+
+## P2. 证据充分性
+本文最弱的 3 个 claim 是什么？证据链条是否支撑结论？
+
+## P3. 范围与泛化
+结论能否泛化到 scope_out 之外？哪些限定条件应写入 Discussion？
+
+## P4. 方法透明度
+复现者仅凭 §Methodology 能否复现分析路径？缺哪些细节？
+
+## P5. 反事实鲁棒性
+若关键证据反转，结论如何变化？文中是否承认这种脆弱性？
+"""
+
+
+def run_git(*args, check=False):
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+        if check and r.returncode != 0:
+            sys.exit(f"git {' '.join(args)} failed: {r.stderr}")
+        return r.stdout
+    except FileNotFoundError:
+        return ""
+
+
+def read_current():
+    if not CURRENT.exists():
+        return None
+    val = CURRENT.read_text(encoding="utf-8").strip()
+    return val or None
+
+
+def paper_dir(slug):
+    return PAPERS / slug
+
+
+def parse_frontmatter(path):
+    """Minimal YAML frontmatter parser: scalars and inline lists only."""
+    if not path.exists():
+        return {}
+    text = path.read_text(encoding="utf-8")
+    m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+    if not m:
+        return {}
+    fm = {}
+    for line in m.group(1).splitlines():
+        if ":" not in line or line.lstrip().startswith("#"):
+            continue
+        key, _, val = line.partition(":")
+        key = key.strip()
+        val = val.strip()
+        if val.startswith("[") and val.endswith("]"):
+            inner = val[1:-1].strip()
+            fm[key] = ([x.strip().strip('"').strip("'") for x in inner.split(",") if x.strip()]
+                       if inner else [])
+        else:
+            fm[key] = val.strip('"').strip("'")
+    return fm
+
+
+def cmd_new(args):
+    slug = args.slug
+    if not re.match(r"^[a-z0-9][a-z0-9-]*$", slug):
+        sys.exit("error: slug must be lowercase letters, digits, and dashes")
+    d = paper_dir(slug)
+    if d.exists():
+        sys.exit(f"error: papers/{slug}/ already exists")
+    title = args.title or input("Title: ").strip() or slug
+    branch = args.branch or run_git("rev-parse", "--abbrev-ref", "HEAD").strip() or "main"
+    d.mkdir(parents=True)
+    (d / "paper.md").write_text(
+        PAPER_TEMPLATE.format(
+            slug=slug, title=title, branch=branch,
+            date=datetime.now().strftime("%Y-%m-%d"),
+        ),
+        encoding="utf-8",
+    )
+    (d / "paper_graph.json").write_text(
+        json.dumps(
+            {
+                "_meta": {"last_scan_commit": None, "scanned_at": None, "slug": slug},
+                "nodes": [],
+                "edges": [],
+                "metadata": {"iteration": 0, "total_nodes": 0, "total_edges": 0},
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (d / "reader_prompts.md").write_text(
+        READER_PROMPTS_TEMPLATE.format(title=title), encoding="utf-8"
+    )
+    (d / "results.tsv").write_text(RESULTS_HEADER, encoding="utf-8")
+    (d / "graphify-out").mkdir(exist_ok=True)
+    print(f"created papers/{slug}/")
+    print(f"next: fill thesis/scope in papers/{slug}/paper.md, then run:")
+    print(f"  scripts/autowrite switch {slug}")
+
+
+def cmd_switch(args):
+    slug = args.slug
+    if not paper_dir(slug).exists():
+        sys.exit(f"error: papers/{slug}/ not found. run: autowrite new {slug}")
+    current = read_current()
+    if current and current != slug:
+        dirty = run_git("status", "--porcelain", str(paper_dir(current))).strip()
+        if dirty:
+            print(f"warning: uncommitted changes in papers/{current}/:")
+            print(dirty)
+            if input("continue? [y/N] ").strip().lower() != "y":
+                sys.exit(1)
+    PAPERS.mkdir(exist_ok=True)
+    CURRENT.write_text(slug + "\n", encoding="utf-8")
+    print(f"switched to: {slug}")
+    cmd_status(argparse.Namespace())
+
+
+def cmd_status(args):
+    slug = read_current()
+    if not slug:
+        print("no active paper. run: autowrite new <slug>")
+        return
+    d = paper_dir(slug)
+    if not d.exists():
+        sys.exit(f"error: papers/.current points to missing papers/{slug}/")
+    fm = parse_frontmatter(d / "paper.md")
+    print(f"active: {slug}")
+    print(f"  title:    {fm.get('title', '?')}")
+    print(f"  thesis:   {fm.get('thesis', '?')}")
+    print(f"  scope_in: {fm.get('scope_in', [])}")
+    print(f"  branch:   {fm.get('branch_baseline', '?')}")
+    tsv = d / "results.tsv"
+    if tsv.exists():
+        lines = tsv.read_text(encoding="utf-8").strip().splitlines()
+        if len(lines) > 1:
+            print("recent iterations:")
+            for line in lines[-5:]:
+                print(f"  {line}")
+
+
+def cmd_list(args):
+    if not PAPERS.exists():
+        print("no papers/")
+        return
+    current = read_current()
+    rows = []
+    for d in sorted(PAPERS.iterdir()):
+        if not d.is_dir():
+            continue
+        fm = parse_frontmatter(d / "paper.md")
+        rows.append((d.name == current, d.name, fm.get("title", "?")))
+    if not rows:
+        print("no papers/ subdirectories")
+        return
+    width = max(len(r[1]) for r in rows)
+    for active, name, title in rows:
+        mark = "*" if active else " "
+        print(f"{mark} {name.ljust(width)}  {title}")
+
+
+def cmd_validate(args):
+    slug = read_current()
+    if not slug:
+        sys.exit("error: no active paper (papers/.current missing)")
+    d = paper_dir(slug)
+    if not d.exists():
+        sys.exit(f"error: papers/{slug}/ missing")
+
+    errors, warnings = [], []
+    paper_md = d / "paper.md"
+    if not paper_md.exists():
+        errors.append("paper.md missing")
+    else:
+        fm = parse_frontmatter(paper_md)
+        for k in ("slug", "title", "thesis"):
+            if not fm.get(k):
+                errors.append(f"frontmatter missing: {k}")
+        if fm.get("slug") and fm["slug"] != slug:
+            errors.append(f"frontmatter slug ({fm['slug']}) != directory ({slug})")
+        if fm.get("thesis", "").startswith("[待填写"):
+            warnings.append("thesis still placeholder")
+        text = paper_md.read_text(encoding="utf-8")
+        h1 = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+        if h1 and fm.get("title") and h1.group(1).strip() != fm["title"]:
+            warnings.append(f"H1 ({h1.group(1).strip()}) != title ({fm['title']})")
+        branch = run_git("rev-parse", "--abbrev-ref", "HEAD").strip()
+        if fm.get("branch_baseline") and branch and fm["branch_baseline"] != branch:
+            warnings.append(f"git branch ({branch}) != branch_baseline ({fm['branch_baseline']})")
+        for subset_file in fm.get("raw_subset", []) or []:
+            if not (RAW / subset_file).exists():
+                errors.append(f"raw_subset file missing: {subset_file}")
+
+    pg = d / "paper_graph.json"
+    if not pg.exists():
+        errors.append("paper_graph.json missing")
+    else:
+        try:
+            data = json.loads(pg.read_text(encoding="utf-8"))
+            if "_meta" not in data:
+                warnings.append("paper_graph.json missing _meta block")
+        except json.JSONDecodeError as e:
+            errors.append(f"paper_graph.json parse error: {e}")
+
+    rp = d / "reader_prompts.md"
+    if not rp.exists():
+        warnings.append("reader_prompts.md missing")
+    else:
+        count = len(re.findall(r"^##\s+P\d", rp.read_text(encoding="utf-8"), re.MULTILINE))
+        if count < 3:
+            warnings.append(f"reader_prompts.md has {count} prompts (need ≥ 3)")
+
+    tsv = d / "results.tsv"
+    if not tsv.exists():
+        errors.append("results.tsv missing")
+    elif not tsv.read_text(encoding="utf-8").startswith("iteration\t"):
+        errors.append("results.tsv header mismatch")
+
+    for e in errors:
+        print(f"  [FAIL] {e}")
+    for w in warnings:
+        print(f"  [WARN] {w}")
+    if not errors and not warnings:
+        print(f"  [OK] papers/{slug}/ passed all checks")
+    sys.exit(1 if errors else 0)
+
+
+def cmd_kb_sync(args):
+    slug = read_current()
+    if not slug:
+        sys.exit("error: no active paper")
+    d = paper_dir(slug)
+    pg = d / "paper_graph.json"
+
+    last_commit = None
+    if pg.exists():
+        try:
+            last_commit = json.loads(pg.read_text(encoding="utf-8")).get("_meta", {}).get("last_scan_commit")
+        except Exception:
+            pass
+
+    dirty = run_git("status", "--porcelain", str(RAW)).strip()
+    if dirty and not args.force:
+        print("warning: raw/ has uncommitted changes:")
+        print(dirty)
+        print("commit first for reliable incremental sync, or rerun with --force for full rescan.")
+        sys.exit(1)
+
+    cmd = [sys.executable, str(BUILD_SCRIPT), "--paper", slug, "--scan", str(RAW), "--save-json"]
+    if last_commit and not args.full:
+        changed = run_git("diff", "--name-only", last_commit, "HEAD", "--", "raw/").strip().splitlines()
+        changed = [c for c in changed if c]
+        if not changed:
+            print(f"no raw/ changes since {last_commit[:8]}. nothing to sync.")
+            return
+        print(f"{len(changed)} file(s) changed since {last_commit[:8]}:")
+        for c in changed:
+            print(f"  {c}")
+        cmd.append("--merge")
+    else:
+        print("full rescan of raw/")
+
+    print("running:", " ".join(cmd))
+    r = subprocess.run(cmd)
+    if r.returncode != 0:
+        sys.exit(r.returncode)
+
+    head = run_git("rev-parse", "HEAD").strip()
+    if head and pg.exists():
+        try:
+            data = json.loads(pg.read_text(encoding="utf-8"))
+            data.setdefault("_meta", {})
+            data["_meta"]["last_scan_commit"] = head
+            data["_meta"]["scanned_at"] = datetime.now().isoformat(timespec="seconds")
+            pg.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            print(f"warning: could not update _meta: {e}")
+
+    tsv = d / "results.tsv"
+    if tsv.exists():
+        with tsv.open("a", encoding="utf-8") as f:
+            f.write(f"-\t{head[:8] if head else '-'}\t-\t-\t-\tkb_sync\t-\traw/ synced\n")
+    print("kb-sync complete. run: scripts/autowrite validate")
+
+
+def main():
+    p = argparse.ArgumentParser(prog="autowrite", description="multi-paper management")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("new", help="scaffold a new paper")
+    sp.add_argument("slug")
+    sp.add_argument("--title")
+    sp.add_argument("--branch")
+    sp.set_defaults(func=cmd_new)
+
+    sp = sub.add_parser("switch", help="set active paper")
+    sp.add_argument("slug")
+    sp.set_defaults(func=cmd_switch)
+
+    sp = sub.add_parser("status", help="show current paper")
+    sp.set_defaults(func=cmd_status)
+
+    sp = sub.add_parser("list", help="list all papers")
+    sp.set_defaults(func=cmd_list)
+
+    sp = sub.add_parser("validate", help="integrity check on current paper")
+    sp.set_defaults(func=cmd_validate)
+
+    sp = sub.add_parser("kb-sync", help="incremental graph update from raw/")
+    sp.add_argument("--full", action="store_true", help="force full rescan")
+    sp.add_argument("--force", action="store_true", help="ignore uncommitted raw/ changes")
+    sp.set_defaults(func=cmd_kb_sync)
+
+    args = p.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
