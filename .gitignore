@@ -1,4 +1,5 @@
-raw/
+raw/*
+!raw/.gitkeep
 *.pyc
 __pycache__/
 venv/

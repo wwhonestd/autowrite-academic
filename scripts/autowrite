@@ -200,27 +200,65 @@ def ensure_default_orchestrator():
     return start_agent("orchestrator")
 
 
+def get_current_paper_context():
+    slug = read_current()
+    if not slug:
+        return None
+    d = paper_dir(slug)
+    paper_md = d / "paper.md"
+    fm = parse_frontmatter(paper_md) if paper_md.exists() else {}
+    return {
+        "slug": slug,
+        "paper_dir": d,
+        "frontmatter": fm,
+    }
+
+
+def save_research_run(slug, payload):
+    paper_path = paper_dir(slug)
+    runs_dir = paper_path / "research_runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out = runs_dir / f"{stamp}.json"
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out
+
+
 def run_research(topic):
     ensure_default_orchestrator()
     researcher = start_agent("researcher")
     if isinstance(researcher, dict):
-        # persistent record returned; reconstruct lightweight runtime agent
         researcher = ResearcherAgent(researcher.get("agent_id"))
+
+    paper_ctx = get_current_paper_context()
+    raw_dir = RAW
 
     questions = researcher.generate_research_questions(topic)
     evidence_by_question = []
     for question in questions:
-        findings = researcher.retrieve_evidence(question)
+        findings = researcher.retrieve_evidence(question, raw_dir=raw_dir)
         evidence_by_question.append({
             "question": question,
             "findings": findings,
         })
 
-    print(json.dumps({
+    payload = {
         "topic": topic,
+        "paper": {
+            "slug": paper_ctx["slug"] if paper_ctx else None,
+            "thesis": (paper_ctx or {}).get("frontmatter", {}).get("thesis"),
+        },
+        "raw_dir_exists": raw_dir.exists(),
         "questions": questions,
         "evidence": evidence_by_question,
-    }, ensure_ascii=False, indent=2))
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+
+    if paper_ctx:
+        out = save_research_run(paper_ctx["slug"], payload)
+        payload["saved_to"] = str(out.relative_to(ROOT))
+
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 def run_git(*args, check=False):
     try:
