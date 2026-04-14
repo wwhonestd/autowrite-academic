@@ -329,6 +329,134 @@ def append_research_to_results(slug, payload):
     return results_path
 
 
+def append_generic_result(slug, dimension, status, eval_mode, note):
+    _, results_path = ensure_research_artifacts(slug)
+    head = run_git("rev-parse", "--short", "HEAD").strip() or "-"
+    with results_path.open("a", encoding="utf-8") as f:
+        f.write(f"-\t{head}\t-\t-\t{dimension}\t{status}\t{eval_mode}\t{note}\n")
+    return results_path
+
+
+def latest_research_run(slug):
+    runs_dir = paper_dir(slug) / "research_runs"
+    if not runs_dir.exists():
+        return None
+    files = sorted(runs_dir.glob("*.json"))
+    if not files:
+        return None
+    latest = files[-1]
+    return latest, json.loads(latest.read_text(encoding="utf-8"))
+
+
+def save_artifact(slug, artifact_type, payload):
+    base = paper_dir(slug) / artifact_type
+    base.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out = base / f"{stamp}.json"
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out
+
+
+def run_write(section_title=None):
+    paper_ctx = get_current_paper_context()
+    if not paper_ctx:
+        sys.exit("error: no active paper")
+
+    latest = latest_research_run(paper_ctx["slug"])
+    if not latest:
+        sys.exit("error: no research run found for current paper")
+    _, research_payload = latest
+
+    writer = start_agent("writer")
+    if isinstance(writer, dict):
+        writer = WriterAgent(writer.get("agent_id"))
+
+    all_findings = []
+    for item in research_payload.get("evidence", []):
+        all_findings.extend(item.get("findings", []))
+    draft = writer.draft_section(section_title or research_payload.get("topic", "Research Draft"), all_findings)
+
+    payload = {
+        "paper": paper_ctx["slug"],
+        "source_research_topic": research_payload.get("topic"),
+        "section_title": section_title or research_payload.get("topic", "Research Draft"),
+        "draft": draft,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    out = save_artifact(paper_ctx["slug"], "drafts", payload)
+    payload["saved_to"] = str(out.relative_to(ROOT))
+    append_generic_result(paper_ctx["slug"], "write", "recorded", "agent_run", f"draft generated: {payload['section_title']}")
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def run_critique():
+    paper_ctx = get_current_paper_context()
+    if not paper_ctx:
+        sys.exit("error: no active paper")
+
+    drafts_dir = paper_dir(paper_ctx["slug"]) / "drafts"
+    files = sorted(drafts_dir.glob("*.json")) if drafts_dir.exists() else []
+    if not files:
+        sys.exit("error: no draft found for current paper")
+    draft_payload = json.loads(files[-1].read_text(encoding="utf-8"))
+
+    critic = start_agent("critic")
+    if isinstance(critic, dict):
+        critic = CriticAgent(critic.get("agent_id"))
+
+    criteria = ["clarity", "argument_strength", "counterargument", "evidence_grounding"]
+    result = critic.evaluate_content(draft_payload.get("draft", ""), criteria)
+    payload = {
+        "paper": paper_ctx["slug"],
+        "draft_source": str(files[-1].relative_to(ROOT)),
+        "criteria": criteria,
+        "result": result,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    out = save_artifact(paper_ctx["slug"], "critiques", payload)
+    payload["saved_to"] = str(out.relative_to(ROOT))
+    append_generic_result(paper_ctx["slug"], "critique", "recorded", "agent_run", "critique generated from latest draft")
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def run_validate():
+    paper_ctx = get_current_paper_context()
+    if not paper_ctx:
+        sys.exit("error: no active paper")
+
+    latest = latest_research_run(paper_ctx["slug"])
+    if not latest:
+        sys.exit("error: no research run found for current paper")
+    _, research_payload = latest
+
+    validator = start_agent("validator")
+    if isinstance(validator, dict):
+        validator = ValidatorAgent(validator.get("agent_id"))
+
+    all_findings = []
+    for item in research_payload.get("evidence", []):
+        all_findings.extend(item.get("findings", []))
+    result = validator.validate_evidence(all_findings)
+    payload = {
+        "paper": paper_ctx["slug"],
+        "research_topic": research_payload.get("topic"),
+        "validated_items": len(all_findings),
+        "result": result,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    out = save_artifact(paper_ctx["slug"], "validations", payload)
+    payload["saved_to"] = str(out.relative_to(ROOT))
+    append_generic_result(paper_ctx["slug"], "validate", "recorded", "agent_run", f"validated {len(all_findings)} findings")
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def run_iterate(topic, section_title=None):
+    run_research(topic)
+    run_write(section_title=section_title)
+    run_critique()
+    run_validate()
+
+
 def run_research(topic):
     ensure_default_orchestrator()
     researcher = start_agent("researcher")
@@ -692,6 +820,21 @@ def main():
     rsp = run_sub.add_parser("research", help="run basic research workflow")
     rsp.add_argument("--topic", required=True)
     rsp.set_defaults(func=lambda args: run_research(args.topic))
+
+    wsp = run_sub.add_parser("write", help="generate draft from latest research run")
+    wsp.add_argument("--section-title")
+    wsp.set_defaults(func=lambda args: run_write(section_title=args.section_title))
+
+    csp = run_sub.add_parser("critique", help="critique latest draft")
+    csp.set_defaults(func=lambda args: run_critique())
+
+    vsp = run_sub.add_parser("validate", help="validate latest research evidence")
+    vsp.set_defaults(func=lambda args: run_validate())
+
+    isp = run_sub.add_parser("iterate", help="run research -> write -> critique -> validate")
+    isp.add_argument("--topic", required=True)
+    isp.add_argument("--section-title")
+    isp.set_defaults(func=lambda args: run_iterate(args.topic, section_title=args.section_title))
 
     args = p.parse_args()
     args.func(args)

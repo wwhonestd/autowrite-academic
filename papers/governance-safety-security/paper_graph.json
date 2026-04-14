@@ -3,7 +3,7 @@
     "slug": "governance-safety-security",
     "created_by": "agent_research",
     "last_scan_commit": null,
-    "last_agent_research_at": "2026-04-14T18:57:58"
+    "last_agent_research_at": "2026-04-14T19:06:48"
   },
   "nodes": [
     {
@@ -33,6 +33,34 @@
       "label": "What are the latest findings on governance modernization incentives?",
       "section": "research_run",
       "source_file": "papers/governance-safety-security/research_runs/20260414-185758.json"
+    },
+    {
+      "id": "concept_research_public_service_equalization_incentives_20260414_190648",
+      "type": "CONCEPT",
+      "label": "public service equalization incentives",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-190648.json"
+    },
+    {
+      "id": "claim_research_20260414_190648_1",
+      "type": "CLAIM",
+      "label": "What are the key aspects of public service equalization incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-190648.json"
+    },
+    {
+      "id": "claim_research_20260414_190648_2",
+      "type": "CLAIM",
+      "label": "How does public service equalization incentives impact other areas?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-190648.json"
+    },
+    {
+      "id": "claim_research_20260414_190648_3",
+      "type": "CLAIM",
+      "label": "What are the latest findings on public service equalization incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-190648.json"
     }
   ],
   "edges": [
@@ -56,11 +84,32 @@
       "relation": "EXTENDS",
       "confidence": "AGENT",
       "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_public_service_equalization_incentives_20260414_190648",
+      "target": "claim_research_20260414_190648_1",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_public_service_equalization_incentives_20260414_190648",
+      "target": "claim_research_20260414_190648_2",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_public_service_equalization_incentives_20260414_190648",
+      "target": "claim_research_20260414_190648_3",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
     }
   ],
   "metadata": {
-    "research_runs": 1,
-    "total_nodes": 4,
-    "total_edges": 3
+    "research_runs": 2,
+    "total_nodes": 8,
+    "total_edges": 6
   }
 }

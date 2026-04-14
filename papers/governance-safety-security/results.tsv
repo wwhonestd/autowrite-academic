@@ -1,2 +1,9 @@
 iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	302ca5b	-	-	research	recorded	agent_run	run research: 3 questions, 0 findings, topic=governance modernization incentives
+-	dd1401d	-	-	write	recorded	agent_run	draft generated: Incentive Mechanism Draft
+-	dd1401d	-	-	critique	recorded	agent_run	critique generated from latest draft
+-	dd1401d	-	-	validate	recorded	agent_run	validated 0 findings
+-	dd1401d	-	-	research	recorded	agent_run	run research: 3 questions, 0 findings, topic=public service equalization incentives
+-	dd1401d	-	-	write	recorded	agent_run	draft generated: Public Service Draft
+-	dd1401d	-	-	critique	recorded	agent_run	critique generated from latest draft
+-	dd1401d	-	-	validate	recorded	agent_run	validated 0 findings
