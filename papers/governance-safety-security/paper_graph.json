@@ -1,0 +1,66 @@
+{
+  "_meta": {
+    "slug": "governance-safety-security",
+    "created_by": "agent_research",
+    "last_scan_commit": null,
+    "last_agent_research_at": "2026-04-14T18:57:58"
+  },
+  "nodes": [
+    {
+      "id": "concept_research_governance_modernization_incentives_20260414_185758",
+      "type": "CONCEPT",
+      "label": "governance modernization incentives",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-185758.json"
+    },
+    {
+      "id": "claim_research_20260414_185758_1",
+      "type": "CLAIM",
+      "label": "What are the key aspects of governance modernization incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-185758.json"
+    },
+    {
+      "id": "claim_research_20260414_185758_2",
+      "type": "CLAIM",
+      "label": "How does governance modernization incentives impact other areas?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-185758.json"
+    },
+    {
+      "id": "claim_research_20260414_185758_3",
+      "type": "CLAIM",
+      "label": "What are the latest findings on governance modernization incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-185758.json"
+    }
+  ],
+  "edges": [
+    {
+      "source": "concept_research_governance_modernization_incentives_20260414_185758",
+      "target": "claim_research_20260414_185758_1",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_governance_modernization_incentives_20260414_185758",
+      "target": "claim_research_20260414_185758_2",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_governance_modernization_incentives_20260414_185758",
+      "target": "claim_research_20260414_185758_3",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    }
+  ],
+  "metadata": {
+    "research_runs": 1,
+    "total_nodes": 4,
+    "total_edges": 3
+  }
+}

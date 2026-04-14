@@ -224,6 +224,111 @@ def save_research_run(slug, payload):
     return out
 
 
+def ensure_research_artifacts(slug):
+    paper_path = paper_dir(slug)
+    paper_path.mkdir(parents=True, exist_ok=True)
+
+    graph_path = paper_path / "paper_graph.json"
+    if not graph_path.exists():
+        graph_path.write_text(
+            json.dumps(
+                {
+                    "_meta": {"slug": slug, "created_by": "agent_research", "last_scan_commit": None},
+                    "nodes": [],
+                    "edges": [],
+                    "metadata": {"research_runs": 0, "total_nodes": 0, "total_edges": 0},
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+    results_path = paper_path / "results.tsv"
+    if not results_path.exists():
+        results_path.write_text(RESULTS_HEADER, encoding="utf-8")
+
+    return graph_path, results_path
+
+
+def merge_research_into_graph(slug, payload):
+    graph_path, _ = ensure_research_artifacts(slug)
+    data = json.loads(graph_path.read_text(encoding="utf-8"))
+    data.setdefault("nodes", [])
+    data.setdefault("edges", [])
+    data.setdefault("metadata", {})
+    data.setdefault("_meta", {})
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    topic = payload.get("topic", "research")
+    topic_id = f"concept_research_{re.sub(r'[^a-z0-9_]+', '_', topic.lower())[:40]}_{stamp}"
+    data["nodes"].append({
+        "id": topic_id,
+        "type": "CONCEPT",
+        "label": topic,
+        "section": "research_run",
+        "source_file": payload.get("saved_to", "agent_run"),
+    })
+
+    node_count = 1
+    edge_count = 0
+    for q_idx, item in enumerate(payload.get("evidence", []), start=1):
+        question = item.get("question", f"question_{q_idx}")
+        claim_id = f"claim_research_{stamp}_{q_idx}"
+        data["nodes"].append({
+            "id": claim_id,
+            "type": "CLAIM",
+            "label": question[:200],
+            "section": "research_run",
+            "source_file": payload.get("saved_to", "agent_run"),
+        })
+        data["edges"].append({
+            "source": topic_id,
+            "target": claim_id,
+            "relation": "EXTENDS",
+            "confidence": "AGENT",
+            "confidence_score": 0.6,
+        })
+        node_count += 1
+        edge_count += 1
+
+        for f_idx, finding in enumerate(item.get("findings", []), start=1):
+            evidence_id = f"evidence_research_{stamp}_{q_idx}_{f_idx}"
+            data["nodes"].append({
+                "id": evidence_id,
+                "type": "EVIDENCE",
+                "label": finding.get("claim", "")[:200],
+                "section": "research_run",
+                "source_file": finding.get("source", payload.get("saved_to", "agent_run")),
+            })
+            data["edges"].append({
+                "source": claim_id,
+                "target": evidence_id,
+                "relation": "SUPPORTS",
+                "confidence": "AGENT",
+                "confidence_score": float(finding.get("support", 0.3)),
+            })
+            node_count += 1
+            edge_count += 1
+
+    data["metadata"]["research_runs"] = int(data["metadata"].get("research_runs", 0)) + 1
+    data["metadata"]["total_nodes"] = len(data["nodes"])
+    data["metadata"]["total_edges"] = len(data["edges"])
+    data["_meta"]["last_agent_research_at"] = datetime.now().isoformat(timespec="seconds")
+    graph_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {"graph_path": graph_path, "nodes_added": node_count, "edges_added": edge_count}
+
+
+def append_research_to_results(slug, payload):
+    _, results_path = ensure_research_artifacts(slug)
+    head = run_git("rev-parse", "--short", "HEAD").strip() or "-"
+    total_findings = sum(len(item.get("findings", [])) for item in payload.get("evidence", []))
+    note = f"run research: {len(payload.get('questions', []))} questions, {total_findings} findings, topic={payload.get('topic', '')}"
+    with results_path.open("a", encoding="utf-8") as f:
+        f.write(f"-\t{head}\t-\t-\tresearch\trecorded\tagent_run\t{note}\n")
+    return results_path
+
+
 def run_research(topic):
     ensure_default_orchestrator()
     researcher = start_agent("researcher")
@@ -257,6 +362,14 @@ def run_research(topic):
     if paper_ctx:
         out = save_research_run(paper_ctx["slug"], payload)
         payload["saved_to"] = str(out.relative_to(ROOT))
+        graph_info = merge_research_into_graph(paper_ctx["slug"], payload)
+        results_path = append_research_to_results(paper_ctx["slug"], payload)
+        payload["graph_updated"] = {
+            "path": str(graph_info["graph_path"].relative_to(ROOT)),
+            "nodes_added": graph_info["nodes_added"],
+            "edges_added": graph_info["edges_added"],
+        }
+        payload["results_updated"] = str(results_path.relative_to(ROOT))
 
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
