@@ -3,7 +3,7 @@
     "slug": "governance-safety-security",
     "created_by": "agent_research",
     "last_scan_commit": null,
-    "last_agent_research_at": "2026-04-14T19:06:48"
+    "last_agent_research_at": "2026-04-14T19:21:52"
   },
   "nodes": [
     {
@@ -61,6 +61,34 @@
       "label": "What are the latest findings on public service equalization incentives?",
       "section": "research_run",
       "source_file": "papers/governance-safety-security/research_runs/20260414-190648.json"
+    },
+    {
+      "id": "concept_research_high_quality_development_incentives_20260414_192152",
+      "type": "CONCEPT",
+      "label": "high quality development incentives",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-192152.json"
+    },
+    {
+      "id": "claim_research_20260414_192152_1",
+      "type": "CLAIM",
+      "label": "What are the key aspects of high quality development incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-192152.json"
+    },
+    {
+      "id": "claim_research_20260414_192152_2",
+      "type": "CLAIM",
+      "label": "How does high quality development incentives impact other areas?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-192152.json"
+    },
+    {
+      "id": "claim_research_20260414_192152_3",
+      "type": "CLAIM",
+      "label": "What are the latest findings on high quality development incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-192152.json"
     }
   ],
   "edges": [
@@ -105,11 +133,32 @@
       "relation": "EXTENDS",
       "confidence": "AGENT",
       "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_high_quality_development_incentives_20260414_192152",
+      "target": "claim_research_20260414_192152_1",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_high_quality_development_incentives_20260414_192152",
+      "target": "claim_research_20260414_192152_2",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_high_quality_development_incentives_20260414_192152",
+      "target": "claim_research_20260414_192152_3",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
     }
   ],
   "metadata": {
-    "research_runs": 2,
-    "total_nodes": 8,
-    "total_edges": 6
+    "research_runs": 3,
+    "total_nodes": 12,
+    "total_edges": 9
   }
 }

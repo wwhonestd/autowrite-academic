@@ -357,6 +357,102 @@ def save_artifact(slug, artifact_type, payload):
     return out
 
 
+def ensure_paper_md(slug):
+    paper_path = paper_dir(slug)
+    paper_path.mkdir(parents=True, exist_ok=True)
+    md = paper_path / "paper.md"
+    if not md.exists():
+        md.write_text(
+            PAPER_TEMPLATE.format(
+                slug=slug,
+                title=slug.replace('-', ' ').title(),
+                branch=run_git("rev-parse", "--abbrev-ref", "HEAD").strip() or "main",
+                date=datetime.now().strftime("%Y-%m-%d"),
+            ),
+            encoding="utf-8",
+        )
+    return md
+
+
+def apply_latest_draft(section_title=None):
+    paper_ctx = get_current_paper_context()
+    if not paper_ctx:
+        sys.exit("error: no active paper")
+
+    drafts_dir = paper_dir(paper_ctx["slug"]) / "drafts"
+    files = sorted(drafts_dir.glob("*.json")) if drafts_dir.exists() else []
+    if not files:
+        sys.exit("error: no draft found for current paper")
+    draft_payload = json.loads(files[-1].read_text(encoding="utf-8"))
+
+    paper_md = ensure_paper_md(paper_ctx["slug"])
+    text = paper_md.read_text(encoding="utf-8")
+    title = section_title or draft_payload.get("section_title") or "Agent Draft"
+    section_block = f"\n\n## {title}\n\n{draft_payload.get('draft', '').strip()}\n"
+    if f"## {title}\n" in text:
+        text += f"\n\n[Updated draft applied at {datetime.now().isoformat(timespec='seconds')}]\n{draft_payload.get('draft', '').strip()}\n"
+    else:
+        text += section_block
+    paper_md.write_text(text, encoding="utf-8")
+
+    payload = {
+        "paper": paper_ctx["slug"],
+        "draft_source": str(files[-1].relative_to(ROOT)),
+        "applied_section": title,
+        "paper_md": str(paper_md.relative_to(ROOT)),
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    out = save_artifact(paper_ctx["slug"], "applied_drafts", payload)
+    payload["saved_to"] = str(out.relative_to(ROOT))
+    append_generic_result(paper_ctx["slug"], "apply_draft", "recorded", "agent_run", f"applied draft to section: {title}")
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def score_current_paper():
+    paper_ctx = get_current_paper_context()
+    if not paper_ctx:
+        sys.exit("error: no active paper")
+
+    paper_md = ensure_paper_md(paper_ctx["slug"])
+    text = paper_md.read_text(encoding="utf-8")
+    graph_path, _ = ensure_research_artifacts(paper_ctx["slug"])
+    graph = json.loads(graph_path.read_text(encoding="utf-8"))
+
+    critiques_dir = paper_dir(paper_ctx["slug"]) / "critiques"
+    validations_dir = paper_dir(paper_ctx["slug"]) / "validations"
+    latest_critique = sorted(critiques_dir.glob("*.json"))[-1] if critiques_dir.exists() and list(critiques_dir.glob("*.json")) else None
+    latest_validation = sorted(validations_dir.glob("*.json"))[-1] if validations_dir.exists() and list(validations_dir.glob("*.json")) else None
+
+    critique_data = json.loads(latest_critique.read_text(encoding="utf-8")) if latest_critique else {}
+    validation_data = json.loads(latest_validation.read_text(encoding="utf-8")) if latest_validation else {}
+
+    evidence_grounding = 1 if len(graph.get("nodes", [])) > 0 else 0
+    citation_validity = 1 if validation_data.get("result", {}).get("validity_score", 0) >= 0.5 else 0
+    argument_chain = 1 if "## " in text else 0
+    counterargument = 1 if critique_data.get("result", {}).get("scores", {}).get("argument_strength", 0) >= 1 else 0
+    clarity = 1 if critique_data.get("result", {}).get("scores", {}).get("clarity", 0) >= 1 else 0
+    graph_coherence = 1 if len(graph.get("edges", [])) > 0 else 0
+
+    total = evidence_grounding + citation_validity + argument_chain + counterargument + clarity + graph_coherence
+    payload = {
+        "paper": paper_ctx["slug"],
+        "scores": {
+            "evidence_grounding": evidence_grounding,
+            "citation_validity": citation_validity,
+            "argument_chain": argument_chain,
+            "counterargument": counterargument,
+            "clarity": clarity,
+            "graph_coherence": graph_coherence,
+        },
+        "total": total,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    out = save_artifact(paper_ctx["slug"], "scores", payload)
+    payload["saved_to"] = str(out.relative_to(ROOT))
+    append_generic_result(paper_ctx["slug"], "score", "recorded", "agent_run", f"rubric score total={total}/6")
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
 def run_write(section_title=None):
     paper_ctx = get_current_paper_context()
     if not paper_ctx:
@@ -453,8 +549,10 @@ def run_validate():
 def run_iterate(topic, section_title=None):
     run_research(topic)
     run_write(section_title=section_title)
+    apply_latest_draft(section_title=section_title)
     run_critique()
     run_validate()
+    score_current_paper()
 
 
 def run_research(topic):
@@ -825,13 +923,20 @@ def main():
     wsp.add_argument("--section-title")
     wsp.set_defaults(func=lambda args: run_write(section_title=args.section_title))
 
+    asp2 = run_sub.add_parser("apply-draft", help="apply latest draft into paper.md")
+    asp2.add_argument("--section-title")
+    asp2.set_defaults(func=lambda args: apply_latest_draft(section_title=args.section_title))
+
     csp = run_sub.add_parser("critique", help="critique latest draft")
     csp.set_defaults(func=lambda args: run_critique())
 
     vsp = run_sub.add_parser("validate", help="validate latest research evidence")
     vsp.set_defaults(func=lambda args: run_validate())
 
-    isp = run_sub.add_parser("iterate", help="run research -> write -> critique -> validate")
+    ssp = run_sub.add_parser("score", help="score current paper with basic rubric")
+    ssp.set_defaults(func=lambda args: score_current_paper())
+
+    isp = run_sub.add_parser("iterate", help="run research -> write -> apply-draft -> critique -> validate -> score")
     isp.add_argument("--topic", required=True)
     isp.add_argument("--section-title")
     isp.set_defaults(func=lambda args: run_iterate(args.topic, section_title=args.section_title))
