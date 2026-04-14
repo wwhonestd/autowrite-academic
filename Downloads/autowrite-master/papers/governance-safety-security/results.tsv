@@ -1,3 +1,5 @@
 iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	95628e8b	-	-	-	kb_sync	-	raw/ synced
 0	baseline	-	12	-	baseline	dry_run	新选题大纲完成：对标框架清晰（argument_chain 3/3），反驳和图谱连通都有改进（从前一题的 8→12）；优先改进：P0 证据层（拉美案例提取）和 P1 反驳声音（增加批评方观点）
+1	22475f5	12	15	evidence_grounding,citation_validity,graph_coherence	keep	full_test	补充拉美具体数据（智利、巴西、阿根廷、委内瑞拉）：10+数据点，政策摇摆案例，社会指标对比表。证据层从1/3→2/3，引证有效性1/3→2/3，图谱连贯性2/3→3/3。下次迭代：增加反驳声音（民主制度优势），从2/3→3/3。
+2	73bf776	15	17	citation_validity,counterargument	keep	full_test	完整集成民主问责机制、权力制约、国家能力-民主权衡框架。§6.2 扩展至 850 字：承认民主合法性、多元创新价值，回应权力集中风险。§6.4 扩展至 1100 字：提出"民主型强国"模式，认可拉美失败本质是容量不足而非民主本身。引证有效性 2/3→3/3（raw/05-06 正式溯源），反驳声音 2/3→3/3（充分展开对立观点+内部整合）。论文进入"优秀"等级（17/18）。
