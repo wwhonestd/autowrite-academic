@@ -42,3 +42,8 @@ This section discusses Public Service Draft. Based on the provided evidence:
 ## High Quality Development Draft
 
 This section discusses High Quality Development Draft. Based on the provided evidence:
+
+
+## Ecological Governance Draft
+
+This section discusses Ecological Governance Draft. Based on the provided evidence:

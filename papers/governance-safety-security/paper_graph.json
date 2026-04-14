@@ -3,7 +3,7 @@
     "slug": "governance-safety-security",
     "created_by": "agent_research",
     "last_scan_commit": null,
-    "last_agent_research_at": "2026-04-14T19:21:52"
+    "last_agent_research_at": "2026-04-14T19:37:44"
   },
   "nodes": [
     {
@@ -89,6 +89,34 @@
       "label": "What are the latest findings on high quality development incentives?",
       "section": "research_run",
       "source_file": "papers/governance-safety-security/research_runs/20260414-192152.json"
+    },
+    {
+      "id": "concept_research_ecological_governance_incentives_20260414_193744",
+      "type": "CONCEPT",
+      "label": "ecological governance incentives",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-193744.json"
+    },
+    {
+      "id": "claim_research_20260414_193744_1",
+      "type": "CLAIM",
+      "label": "What are the key aspects of ecological governance incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-193744.json"
+    },
+    {
+      "id": "claim_research_20260414_193744_2",
+      "type": "CLAIM",
+      "label": "How does ecological governance incentives impact other areas?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-193744.json"
+    },
+    {
+      "id": "claim_research_20260414_193744_3",
+      "type": "CLAIM",
+      "label": "What are the latest findings on ecological governance incentives?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260414-193744.json"
     }
   ],
   "edges": [
@@ -154,11 +182,32 @@
       "relation": "EXTENDS",
       "confidence": "AGENT",
       "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_ecological_governance_incentives_20260414_193744",
+      "target": "claim_research_20260414_193744_1",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_ecological_governance_incentives_20260414_193744",
+      "target": "claim_research_20260414_193744_2",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_ecological_governance_incentives_20260414_193744",
+      "target": "claim_research_20260414_193744_3",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
     }
   ],
   "metadata": {
-    "research_runs": 3,
-    "total_nodes": 12,
-    "total_edges": 9
+    "research_runs": 4,
+    "total_nodes": 16,
+    "total_edges": 12
   }
 }

@@ -619,6 +619,44 @@ def run_validate():
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
+def decide_keep_discard(slug):
+    scores_dir = paper_dir(slug) / "scores"
+    files = sorted(scores_dir.glob("*.json")) if scores_dir.exists() else []
+    if not files:
+        sys.exit("error: no score artifacts found for current paper")
+    latest = json.loads(files[-1].read_text(encoding="utf-8"))
+    old_total = int(latest.get("old_total", 0) or 0)
+    new_total = int(latest.get("total", 0) or 0)
+
+    if new_total > old_total:
+        decision = "keep"
+        reason = f"score improved from {old_total} to {new_total}"
+    else:
+        decision = "discard"
+        reason = f"score did not improve ({old_total} -> {new_total})"
+
+    payload = {
+        "paper": slug,
+        "old_total": old_total,
+        "new_total": new_total,
+        "decision": decision,
+        "reason": reason,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    out = save_artifact(slug, "decisions", payload)
+    payload["saved_to"] = str(out.relative_to(ROOT))
+    append_generic_result(
+        slug,
+        "decision",
+        decision,
+        "agent_run",
+        reason,
+        old_score=old_total,
+        new_score=new_total,
+    )
+    return payload
+
+
 def run_iterate(topic, section_title=None):
     run_research(topic)
     run_write(section_title=section_title)
@@ -626,6 +664,14 @@ def run_iterate(topic, section_title=None):
     run_critique()
     run_validate()
     score_current_paper()
+
+    paper_ctx = get_current_paper_context()
+    decision = decide_keep_discard(paper_ctx["slug"])
+    print(json.dumps({
+        "paper": paper_ctx["slug"],
+        "topic": topic,
+        "decision": decision,
+    }, ensure_ascii=False, indent=2))
 
 
 def run_research(topic):
@@ -1009,7 +1055,10 @@ def main():
     ssp = run_sub.add_parser("score", help="score current paper with basic rubric")
     ssp.set_defaults(func=lambda args: score_current_paper())
 
-    isp = run_sub.add_parser("iterate", help="run research -> write -> apply-draft -> critique -> validate -> score")
+    dsp = run_sub.add_parser("decide", help="decide keep or discard from latest scores")
+    dsp.set_defaults(func=lambda args: print(json.dumps(decide_keep_discard(get_current_paper_context()['slug']), ensure_ascii=False, indent=2)))
+
+    isp = run_sub.add_parser("iterate", help="run research -> write -> apply-draft -> critique -> validate -> score -> decide")
     isp.add_argument("--topic", required=True)
     isp.add_argument("--section-title")
     isp.set_defaults(func=lambda args: run_iterate(args.topic, section_title=args.section_title))
