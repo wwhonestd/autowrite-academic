@@ -1,7 +1,7 @@
-from typing import List, Dict, Any, Optional
-from src.agents.base import BaseAgent
-from src.communication.protocol import Message
-from src.knowledge_graph.graph_handler import KnowledgeGraphHandler # Assuming this will be created later
+from typing import List, Dict, Any
+from .base import BaseAgent
+from ..communication.protocol import Message
+from ..knowledge_graph.graph_handler import KnowledgeGraphHandler
 
 class WriterAgent(BaseAgent):
     def __init__(self, agent_id: str | None = None):

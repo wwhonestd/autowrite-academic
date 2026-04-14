@@ -1,6 +1,6 @@
-from typing import List, Dict, Any
-from src.agents.base import BaseAgent
-from src.communication.protocol import Message
+from typing import List, Dict
+from .base import BaseAgent
+from ..communication.protocol import Message
 
 class OrchestratorAgent(BaseAgent):
     def __init__(self, agent_id: str | None = None):
@@ -26,14 +26,15 @@ class OrchestratorAgent(BaseAgent):
         else:
             print(f"Orchestrator received message from unknown sender {message.sender_id[:6]}...")
 
-        # Example: route message to researcher if it's a research-related task
-        # Note: This assumes a 'researcher' agent is registered and has a 'receive_message' method.
-        # This part will be expanded when ResearcherAgent is implemented.
-        if "research" in message.content.lower() and "researcher" in self.agents:
-            try:
-                self.agents["researcher"].receive_message(message)
-            except AttributeError:
-                print("Researcher agent does not have receive_message method yet.")
+        # Example: route message to any registered researcher if it's a research-related task
+        if "research" in message.content.lower():
+            for agent in self.agents.values():
+                if getattr(agent, "name", "").lower() == "researcher":
+                    try:
+                        agent.receive_message(message)
+                    except AttributeError:
+                        print("Researcher agent does not have receive_message method yet.")
+                    break
 
     def run(self, *args, **kwargs):
         # This method might be used for the main loop or high-level task execution

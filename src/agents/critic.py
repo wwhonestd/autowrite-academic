@@ -1,6 +1,6 @@
-from typing import List, Dict, Any, Optional
-from src.agents.base import BaseAgent
-from src.communication.protocol import Message
+from typing import List, Dict, Any
+from .base import BaseAgent
+from ..communication.protocol import Message
 
 class CriticAgent(BaseAgent):
     def __init__(self, agent_id: str | None = None):

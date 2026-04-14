@@ -21,6 +21,10 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from src.agents import OrchestratorAgent, ResearcherAgent, WriterAgent, CriticAgent, ValidatorAgent
 PAPERS = ROOT / "papers"
 CURRENT = PAPERS / ".current"
 RAW = ROOT / "raw"
@@ -83,6 +87,59 @@ READER_PROMPTS_TEMPLATE = """# Reader Prompts — {title}
 ## P5. 反事实鲁棒性
 若关键证据反转，结论如何变化？文中是否承认这种脆弱性？
 """
+
+
+agent_instances = {}
+orchestrator_instance = None
+
+
+def start_agent(agent_type, agent_id=None):
+    global orchestrator_instance
+    cls_map = {
+        "orchestrator": OrchestratorAgent,
+        "researcher": ResearcherAgent,
+        "writer": WriterAgent,
+        "critic": CriticAgent,
+        "validator": ValidatorAgent,
+    }
+    cls = cls_map.get(agent_type)
+    if not cls:
+        sys.exit(f"error: unknown agent type: {agent_type}")
+
+    if agent_type == "orchestrator" and orchestrator_instance is not None:
+        print(f"orchestrator already running: {orchestrator_instance}")
+        return orchestrator_instance
+
+    agent = cls(agent_id)
+    agent_instances[agent.agent_id] = agent
+
+    if agent_type == "orchestrator":
+        orchestrator_instance = agent
+    elif orchestrator_instance is not None:
+        orchestrator_instance.register_agent(agent)
+
+    print(f"started {agent.name}: {agent.agent_id}")
+    return agent
+
+
+def stop_agent(agent_id):
+    global orchestrator_instance
+    agent = agent_instances.get(agent_id)
+    if not agent:
+        sys.exit(f"error: agent not found: {agent_id}")
+    agent.stop()
+    del agent_instances[agent_id]
+    if orchestrator_instance and orchestrator_instance.agent_id == agent_id:
+        orchestrator_instance = None
+    print(f"stopped agent: {agent_id}")
+
+
+def list_agents_cmd():
+    if not agent_instances:
+        print("no running agents")
+        return
+    for agent_id, agent in agent_instances.items():
+        print(f"{agent.name}\t{agent_id}")
 
 
 def run_git(*args, check=False):
@@ -382,6 +439,21 @@ def main():
     sp.add_argument("--full", action="store_true", help="force full rescan")
     sp.add_argument("--force", action="store_true", help="ignore uncommitted raw/ changes")
     sp.set_defaults(func=cmd_kb_sync)
+
+    sp = sub.add_parser("agent", help="manage local agents")
+    agent_sub = sp.add_subparsers(dest="agent_cmd", required=True)
+
+    asp = agent_sub.add_parser("start", help="start an agent")
+    asp.add_argument("agent_type", choices=["orchestrator", "researcher", "writer", "critic", "validator"])
+    asp.add_argument("--id", dest="agent_id")
+    asp.set_defaults(func=lambda args: start_agent(args.agent_type, args.agent_id))
+
+    asp = agent_sub.add_parser("stop", help="stop an agent by id")
+    asp.add_argument("agent_id")
+    asp.set_defaults(func=lambda args: stop_agent(args.agent_id))
+
+    asp = agent_sub.add_parser("list", help="list running agents")
+    asp.set_defaults(func=lambda args: list_agents_cmd())
 
     args = p.parse_args()
     args.func(args)
