@@ -162,7 +162,7 @@ def start_agent(agent_type, agent_id=None):
     if not cls:
         sys.exit(f"error: unknown agent type: {agent_type}")
 
-    state = load_agents_state()
+    state = reconcile_agents_state(load_agents_state())
     if agent_type == "orchestrator":
         existing = next((a for a in state.get("agents", []) if a.get("type") == "orchestrator"), None)
         if existing:
@@ -192,7 +192,7 @@ def start_agent(agent_type, agent_id=None):
 
 def stop_agent(agent_id):
     global orchestrator_instance
-    state = load_agents_state()
+    state = reconcile_agents_state(load_agents_state())
     record = _find_agent_record(state, agent_id)
     if not record:
         sys.exit(f"error: agent not found: {agent_id}")
@@ -222,7 +222,7 @@ def list_agents_cmd():
 
 
 def ensure_default_orchestrator():
-    state = load_agents_state()
+    state = reconcile_agents_state(load_agents_state())
     existing = next((a for a in state.get("agents", []) if a.get("type") == "orchestrator"), None)
     if existing:
         return existing
@@ -297,6 +297,7 @@ def merge_research_into_graph(slug, payload):
     source_file = payload.get("saved_to", "agent_run")
 
     existing_nodes = {(n.get("type"), n.get("label"), n.get("source_file")): n.get("id") for n in data["nodes"]}
+    existing_ids = {n.get("id") for n in data["nodes"]}
     existing_edges = {(e.get("source"), e.get("target"), e.get("relation")) for e in data["edges"]}
 
     def ensure_node(node_id, node_type, label, section, source):
@@ -304,16 +305,22 @@ def merge_research_into_graph(slug, payload):
         existing = existing_nodes.get(key)
         if existing:
             return existing, False
+        candidate_id = node_id
+        suffix = 1
+        while candidate_id in existing_ids:
+            suffix += 1
+            candidate_id = f"{node_id}_{suffix}"
         data["nodes"].append({
-            "id": node_id,
+            "id": candidate_id,
             "type": node_type,
             "label": label,
             "section": section,
             "source_file": source,
             "run_id": run_id,
         })
-        existing_nodes[key] = node_id
-        return node_id, True
+        existing_nodes[key] = candidate_id
+        existing_ids.add(candidate_id)
+        return candidate_id, True
 
     def ensure_edge(source, target, relation, confidence_score):
         key = (source, target, relation)

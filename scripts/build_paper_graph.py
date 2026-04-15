@@ -715,7 +715,7 @@ Edges connecting different communities — the paper's structural backbone.
 | Uncontested claims | {"PASS" if not uncontested_claims else "WARN"} | {len(uncontested_claims)} |
 | Orphan evidence | {"PASS" if not orphan_evidence else "WARN"} | {len(orphan_evidence)} |
 | Disconnected clusters | {"PASS" if len(communities) <= 1 else "WARN"} | {len(communities)} |
-| Cross-community bridges | {"OK" if len(cross_edges) >= 3 else "LOW"} | {len(cross_edges)} |
+| Cross-community bridges | N/A | {len(cross_edges)} |
 """
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
