@@ -36,12 +36,14 @@ class ResearcherAgent(BaseAgent):
         self.research_questions = questions[:4]
         return self.research_questions
 
-    def retrieve_evidence(self, question: str, raw_dir: Optional[Path] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    def retrieve_evidence(self, question: str, raw_dir: Optional[Path] = None, limit: int = 5, extra_terms: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         print(f"Researcher retrieving evidence for: {question}")
         if raw_dir is None or not raw_dir.exists():
             return []
 
         token_candidates = [w.lower() for w in question.split() if len(w.strip()) >= 3]
+        if extra_terms:
+            token_candidates.extend([w.lower() for w in extra_terms if len(w.strip()) >= 2])
         keywords = set(token_candidates)
         findings: List[Dict[str, Any]] = []
         fallback_findings: List[Dict[str, Any]] = []

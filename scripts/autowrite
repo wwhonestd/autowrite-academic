@@ -596,11 +596,11 @@ def score_current_paper():
     latest_research_payload = latest_research[1] if latest_research else {}
     total_findings = sum(len(item.get("findings", [])) for item in latest_research_payload.get("evidence", [])) if latest_research_payload else 0
 
-    if total_findings >= 6 and node_count >= 20:
+    if total_findings >= 6 and validation_items >= 3:
         evidence_grounding = 3
-    elif total_findings >= 2 and node_count >= 10:
+    elif total_findings >= 2:
         evidence_grounding = 2
-    elif total_findings >= 1 or node_count >= 1:
+    elif total_findings >= 1:
         evidence_grounding = 1
     else:
         evidence_grounding = 0
@@ -915,9 +915,14 @@ def run_research(topic):
     thesis = (paper_ctx or {}).get("frontmatter", {}).get("thesis")
     existing_sections = re.findall(r"^##\s+(.+)$", ensure_paper_md(paper_ctx['slug']).read_text(encoding='utf-8'), re.MULTILINE) if paper_ctx else []
     questions = researcher.generate_research_questions(topic, thesis=thesis, existing_sections=existing_sections)
+    extra_terms = []
+    if thesis and not thesis.startswith("[待填写"):
+        extra_terms.extend(re.findall(r"[\w\u4e00-\u9fff]{2,}", thesis))
+    extra_terms.extend(re.findall(r"[\w\u4e00-\u9fff]{2,}", topic))
+    extra_terms.extend(existing_sections[:4])
     evidence_by_question = []
     for question in questions:
-        findings = researcher.retrieve_evidence(question, raw_dir=raw_dir)
+        findings = researcher.retrieve_evidence(question, raw_dir=raw_dir, extra_terms=extra_terms)
         evidence_by_question.append({
             "question": question,
             "findings": findings,
