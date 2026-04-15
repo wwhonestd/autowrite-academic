@@ -37,3 +37,5 @@ iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	0c25f05	-	-	critique	recorded	agent_run	critique generated from latest draft
 -	5b9e806	-	-	research	recorded	agent_run	run research: 4 questions, 0 findings, topic=institutional continuity and safety
 -	5b9e806	11	11	score	recorded	agent_run	rubric score total=11/18
+-	e115da0	-	-	research	recorded	agent_run	run research: 4 questions, 0 findings, topic=public service and ecological governance coordination
+-	e115da0	11	11	decision	discard	agent_run	score did not improve (11 -> 11)

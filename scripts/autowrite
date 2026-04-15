@@ -744,6 +744,8 @@ def decide_keep_discard(slug):
     latest = json.loads(files[-1].read_text(encoding="utf-8"))
     old_total = int(latest.get("old_total", 0) or 0)
     new_total = int(latest.get("total", 0) or 0)
+    band = latest.get("band")
+    scores = latest.get("scores", {})
 
     if new_total > old_total:
         decision = "keep"
@@ -752,12 +754,21 @@ def decide_keep_discard(slug):
         decision = "discard"
         reason = f"score did not improve ({old_total} -> {new_total})"
 
+    reason_parts = [reason]
+    if band:
+        reason_parts.append(f"band={band}")
+    low_dimensions = [k for k, v in scores.items() if v <= 1]
+    if low_dimensions:
+        reason_parts.append("weak dimensions: " + ", ".join(low_dimensions))
+
     payload = {
         "paper": slug,
         "old_total": old_total,
         "new_total": new_total,
         "decision": decision,
-        "reason": reason,
+        "reason": "; ".join(reason_parts),
+        "band": band,
+        "scores": scores,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
     out = save_artifact(slug, "decisions", payload)

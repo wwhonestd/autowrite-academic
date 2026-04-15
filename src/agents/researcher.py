@@ -41,9 +41,9 @@ class ResearcherAgent(BaseAgent):
         if raw_dir is None or not raw_dir.exists():
             return []
 
-        keywords = [w.lower() for w in question.split() if len(w.strip()) >= 4]
+        keyword_tokens = [w.lower() for w in question.split() if len(w.strip()) >= 3]
+        keywords = set(keyword_tokens)
         findings: List[Dict[str, Any]] = []
-
         fallback_findings: List[Dict[str, Any]] = []
 
         for path in sorted(raw_dir.glob("*.md")):
@@ -52,33 +52,37 @@ class ResearcherAgent(BaseAgent):
             except Exception:
                 continue
 
+            filename_lower = path.stem.lower()
             lines = [line.strip() for line in text.splitlines() if line.strip()]
             if lines:
                 fallback_findings.append({
                     "source": f"raw/{path.name}",
                     "claim": lines[0][:300],
-                    "support": 0.3,
+                    "support": 0.2,
                     "score": 0,
                 })
 
-            score = 0
+            best_score = 0
             matched_line = None
             for line in lines:
                 line_lower = line.lower()
-                current = sum(1 for kw in keywords if kw in line_lower)
-                if current > score:
-                    score = current
+                token_hits = sum(1 for kw in keywords if kw in line_lower)
+                filename_hits = sum(1 for kw in keywords if kw in filename_lower)
+                chinese_bonus = 1 if any(ord(ch) > 127 for ch in line[:50]) and any(ord(ch) > 127 for ch in question) else 0
+                current = token_hits + filename_hits + chinese_bonus
+                if current > best_score:
+                    best_score = current
                     matched_line = line
 
-            if score > 0 and matched_line:
+            if best_score > 0 and matched_line:
                 findings.append({
                     "source": f"raw/{path.name}",
                     "claim": matched_line[:300],
-                    "support": min(0.5 + score * 0.1, 0.95),
-                    "score": score,
+                    "support": min(0.35 + best_score * 0.12, 0.95),
+                    "score": best_score,
                 })
 
-        findings.sort(key=lambda x: x.get("score", 0), reverse=True)
+        findings.sort(key=lambda x: (x.get("score", 0), x.get("support", 0)), reverse=True)
         if findings:
             return findings[:limit]
         return fallback_findings[:limit]

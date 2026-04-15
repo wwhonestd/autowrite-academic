@@ -1,0 +1,17 @@
+{
+  "paper": "governance-safety-security",
+  "old_total": 11,
+  "new_total": 11,
+  "decision": "discard",
+  "reason": "score did not improve (11 -> 11); band=developing; weak dimensions: citation_validity, counterargument, clarity",
+  "band": "developing",
+  "scores": {
+    "evidence_grounding": 3,
+    "citation_validity": 0,
+    "argument_chain": 3,
+    "counterargument": 1,
+    "clarity": 1,
+    "graph_coherence": 3
+  },
+  "generated_at": "2026-04-15T01:23:50"
+}
