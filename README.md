@@ -99,7 +99,9 @@ This creates:
 
 ### 2. Fill the Frontmatter
 
-Edit `papers/my-research/paper.md` and complete the YAML frontmatter:
+Edit `papers/my-research/paper.md` and complete the YAML frontmatter.
+
+Important: list fields like `scope_in`, `scope_out`, and `raw_subset` may be written either as inline lists or multiline YAML lists.
 
 ```yaml
 ---
@@ -124,11 +126,10 @@ created_at: 2026-04-14
 ```bash
 # Copy your research materials to raw/
 cp ~/my-sources/*.md raw/
-cp ~/papers/*.pdf raw/
+cp ~/notes/*.txt raw/
 
-# Commit them to git
-git add raw/
-git commit -m "docs: add source materials"
+# Note: the current built-in scanners read .md and .txt files.
+# PDF ingestion is not implemented yet and should be converted before import.
 ```
 
 ### 4. Build Knowledge Graph
@@ -138,7 +139,7 @@ scripts/autowrite kb-sync
 ```
 
 This:
-- Scans all files in `raw/` since last sync
+- Scans supported source files in `raw/` (currently `.md` and `.txt`) since last sync
 - Extracts concepts, arguments, and evidence nodes
 - Builds `papers/my-research/paper_graph.json`
 - Generates `papers/my-research/graphify-out/graph.html` (interactive visualization)
@@ -156,6 +157,11 @@ python scripts/build_paper_graph.py --paper my-research
 # Check rubric scores in results.tsv
 cat papers/my-research/results.tsv
 ```
+
+Current workflow notes:
+- `agent run research` reads `.md` and `.txt` files from `raw/`
+- paper slugs must match `[a-z0-9-]+`
+- graph viewer tooltips are rendered with DOM text nodes rather than unsafe `innerHTML`
 
 ### 6. Commit and Track Progress
 

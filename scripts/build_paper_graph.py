@@ -27,11 +27,23 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PAPERS_DIR = PROJECT_ROOT / "papers"
 
 
+def _normalize_slug(slug):
+    if slug is None:
+        return None
+    slug = str(slug).strip()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", slug):
+        raise ValueError(f"Invalid paper slug: {slug}")
+    return slug
+
+
 def _paths_for(slug):
     """Return (json, html, report) paths for a given paper slug, or legacy
     graphify-out/ if slug is None."""
     if slug:
-        base = PAPERS_DIR / slug
+        norm_slug = _normalize_slug(slug)
+        if norm_slug is None:
+            raise ValueError("Invalid paper slug")
+        base = PAPERS_DIR / norm_slug
         return (
             base / "paper_graph.json",
             base / "graphify-out" / "graph.html",
@@ -46,7 +58,7 @@ def _active_slug():
     f = PAPERS_DIR / ".current"
     if f.exists():
         val = f.read_text(encoding="utf-8").strip()
-        return val or None
+        return _normalize_slug(val) if val else None
     return None
 
 
@@ -279,13 +291,6 @@ def scan_documents(scan_dirs):
                         "source_file": rel_path,
                     })
                     seen_nodes.add(claim_id)
-                    edges.append({
-                        "source": doc_id,
-                        "target": claim_id,
-                        "relation": "SUPPORTS",
-                        "confidence": "INFERRED",
-                        "confidence_score": 0.7,
-                    })
                     # Link claim to any citations in the same sentence
                     for cite_key in CITATION_RE.findall(sent):
                         if cite_key in seen_citations:
@@ -411,18 +416,13 @@ def find_communities(node_map, edges):
 
 
 def find_cross_community_edges(edges, communities):
-    """Edges that connect nodes in different communities."""
-    node_to_community = {}
-    for i, members in enumerate(communities):
-        for nid in members:
-            node_to_community[nid] = i
-    bridges = []
-    for e in edges:
-        s_comm = node_to_community.get(e["source"])
-        t_comm = node_to_community.get(e["target"])
-        if s_comm is not None and t_comm is not None and s_comm != t_comm:
-            bridges.append(e)
-    return bridges
+    """Edges that connect nodes in different communities.
+
+    With communities defined as connected components on the same edge set,
+    true cross-community edges should be empty by construction.
+    This helper returns an empty list to avoid reporting misleading bridges.
+    """
+    return []
 
 
 def generate_html(node_map, edges, out_path):
@@ -554,12 +554,24 @@ sel.addEventListener('change', e => {{
 
 // tooltip
 const tip = document.getElementById('tooltip');
+function clearNode(el) {{ while (el.firstChild) el.removeChild(el.firstChild); }}
+function addTag(text) {{
+  const span = document.createElement('span');
+  span.className = 'tag';
+  span.textContent = text;
+  return span;
+}}
 network.on('hoverNode', p => {{
   const n = nodes.get(p.node);
-  tip.innerHTML = '<h3>' + n.label + '</h3>' +
-    '<span class="tag">' + (n.nodeType || 'unknown') + '</span>' +
-    (n.section ? '<span class="tag">§' + n.section + '</span>' : '') +
-    '<br><br>In: ' + n.inCount + ' · Out: ' + n.outCount + ' · Degree: ' + n.degree;
+  clearNode(tip);
+  const h3 = document.createElement('h3');
+  h3.textContent = n.label;
+  tip.appendChild(h3);
+  tip.appendChild(addTag(n.nodeType || 'unknown'));
+  if (n.section) tip.appendChild(addTag('§' + n.section));
+  tip.appendChild(document.createElement('br'));
+  tip.appendChild(document.createElement('br'));
+  tip.appendChild(document.createTextNode('In: ' + n.inCount + ' · Out: ' + n.outCount + ' · Degree: ' + n.degree));
   tip.style.display = 'block';
 }});
 network.on('blurNode', () => tip.style.display = 'none');
@@ -777,7 +789,7 @@ def main():
                         help="With --save-json: merge into existing graph instead of overwriting")
     args = parser.parse_args()
 
-    slug = args.paper or _active_slug()
+    slug = _normalize_slug(args.paper) if args.paper else _active_slug()
     default_json, default_html, default_report = _paths_for(slug)
     input_path = args.input or default_json
     html_path = args.html or default_html

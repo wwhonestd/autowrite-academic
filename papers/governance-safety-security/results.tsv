@@ -49,3 +49,8 @@ iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	6238bd0	-	-	research	recorded	agent_run	run research: 4 questions, 0 findings, topic=development quality and risk prevention
 -	6238bd0	-	-	write	recorded	agent_run	draft generated: Development Quality Draft
 -	6238bd0	10	8	score	recorded	agent_run	rubric score total=8/18
+-	0143fa6	10	8	decision	discard	agent_run	score did not improve (10 -> 8)
+-	0143fa6	8	8	score	recorded	agent_run	rubric score total=8/18
+-	0143fa6	8	8	decision	discard	agent_run	score did not improve (8 -> 8)
+-	0143fa6	8	8	score	recorded	agent_run	rubric score total=8/18
+-	0143fa6	8	8	decision	discard	agent_run	score did not improve (8 -> 8)

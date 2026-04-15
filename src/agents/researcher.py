@@ -46,7 +46,8 @@ class ResearcherAgent(BaseAgent):
         findings: List[Dict[str, Any]] = []
         fallback_findings: List[Dict[str, Any]] = []
 
-        for path in sorted(raw_dir.glob("*.md")):
+        candidate_files = sorted(raw_dir.rglob("*.md")) + sorted(raw_dir.rglob("*.txt"))
+        for path in candidate_files:
             try:
                 text = path.read_text(encoding="utf-8")
             except Exception:

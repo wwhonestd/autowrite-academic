@@ -14,6 +14,7 @@ Zero external deps. Reuses git for history and incremental diffing.
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -29,6 +30,13 @@ from src.agents import OrchestratorAgent, ResearcherAgent, WriterAgent, CriticAg
 PAPERS = ROOT / "papers"
 CURRENT = PAPERS / ".current"
 RAW = ROOT / "raw"
+
+
+def normalize_slug(slug):
+    slug = str(slug).strip()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", slug):
+        sys.exit(f"error: invalid paper slug: {slug}")
+    return slug
 BUILD_SCRIPT = ROOT / "scripts" / "build_paper_graph.py"
 STATE_DIR = ROOT / ".autowrite"
 AGENTS_STATE = STATE_DIR / "agents.json"
@@ -110,6 +118,25 @@ def load_agents_state():
         return {"agents": []}
 
 
+def _pid_alive(pid):
+    try:
+        os.kill(int(pid), 0)
+        return True
+    except Exception:
+        return False
+
+
+def reconcile_agents_state(state):
+    live = []
+    for record in state.get("agents", []):
+        pid = record.get("pid")
+        if pid and _pid_alive(pid):
+            record["status"] = "running"
+            live.append(record)
+    state["agents"] = live
+    return state
+
+
 def save_agents_state(state):
     ensure_state_dir()
     AGENTS_STATE.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -156,6 +183,7 @@ def start_agent(agent_type, agent_id=None):
         "name": agent.name,
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "status": "running",
+        "pid": os.getpid(),
     })
     save_agents_state(state)
     print(f"started {agent.name}: {agent.agent_id}")
@@ -183,7 +211,8 @@ def stop_agent(agent_id):
 
 
 def list_agents_cmd():
-    state = load_agents_state()
+    state = reconcile_agents_state(load_agents_state())
+    save_agents_state(state)
     agents = state.get("agents", [])
     if not agents:
         print("no running agents")
@@ -313,7 +342,7 @@ def merge_research_into_graph(slug, payload):
     for q_idx, item in enumerate(payload.get("evidence", []), start=1):
         question = item.get("question", f"question_{q_idx}")[:200]
         claim_id, added = ensure_node(
-            f"claim_research_{re.sub(r'[^a-z0-9_]+', '_', question.lower())[:50]}",
+            f"claim_research_{run_id}_{re.sub(r'[^a-z0-9_]+', '_', question.lower())[:50]}",
             "CLAIM",
             question,
             "research_run",
@@ -328,7 +357,7 @@ def merge_research_into_graph(slug, payload):
             evidence_label = finding.get("claim", "")[:200]
             evidence_source = finding.get("source", source_file)
             evidence_id, added = ensure_node(
-                f"evidence_research_{re.sub(r'[^a-z0-9_]+', '_', evidence_label.lower())[:50]}_{f_idx}",
+                f"evidence_research_{run_id}_{re.sub(r'[^a-z0-9_]+', '_', evidence_label.lower())[:50]}_{f_idx}",
                 "EVIDENCE",
                 evidence_label,
                 "research_run",
@@ -553,6 +582,7 @@ def score_current_paper():
     paragraph_count = len([p for p in text.split("\n\n") if p.strip()])
     clarity_hint = critique_data.get("result", {}).get("scores", {}).get("clarity", 0)
     argument_hint = critique_data.get("result", {}).get("scores", {}).get("argument_strength", 0)
+    counterargument_hint = critique_data.get("result", {}).get("scores", {}).get("counterargument", 0)
     validity_score = validation_data.get("result", {}).get("validity_score", 0)
     validation_items = validation_data.get("validated_items", 0)
     latest_research = latest_research_run(paper_ctx["slug"])
@@ -588,9 +618,9 @@ def score_current_paper():
 
     thesis_alignment = critique_data.get("result", {}).get("scores", {}).get("thesis_alignment", 0)
 
-    if argument_hint >= 3:
+    if counterargument_hint >= 3:
         counterargument = 3
-    elif argument_hint >= 2:
+    elif counterargument_hint >= 2:
         counterargument = 2
     elif latest_critique is not None:
         counterargument = 1
@@ -658,7 +688,7 @@ def score_current_paper():
             "evidence_grounding": f"node_count={node_count}",
             "citation_validity": f"validation_items={validation_items}, validity_score={validity_score}",
             "argument_chain": f"heading_count={heading_count}, paragraph_count={paragraph_count}, thesis_alignment={thesis_alignment}",
-            "counterargument": f"argument_hint={argument_hint}, thesis_alignment={thesis_alignment}",
+            "counterargument": f"counterargument_hint={counterargument_hint}, thesis_alignment={thesis_alignment}",
             "clarity": f"clarity_hint={clarity_hint}, paragraph_count={paragraph_count}",
             "graph_coherence": f"edge_count={edge_count}",
         },
@@ -696,12 +726,15 @@ def run_write(section_title=None):
     for item in research_payload.get("evidence", []):
         all_findings.extend(item.get("findings", []))
     thesis = paper_ctx.get("frontmatter", {}).get("thesis")
-    draft = writer.draft_section(section_title or research_payload.get("topic", "Research Draft"), all_findings, thesis=thesis)
+    paper_text = ensure_paper_md(paper_ctx["slug"]).read_text(encoding="utf-8")
+    existing_titles = re.findall(r"^##\s+(.+)$", paper_text, re.MULTILINE)
+    resolved_title = route_section_title(research_payload.get("topic", "Research Draft"), existing_titles, requested_title=section_title)
+    draft = writer.draft_section(resolved_title, all_findings, thesis=thesis)
 
     payload = {
         "paper": paper_ctx["slug"],
         "source_research_topic": research_payload.get("topic"),
-        "section_title": section_title or research_payload.get("topic", "Research Draft"),
+        "section_title": resolved_title,
         "draft": draft,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
@@ -727,7 +760,8 @@ def run_critique():
         critic = CriticAgent(critic.get("agent_id"))
 
     criteria = ["clarity", "argument_strength", "counterargument", "evidence_grounding"]
-    result = critic.evaluate_content(draft_payload.get("draft", ""), criteria)
+    thesis = paper_ctx.get("frontmatter", {}).get("thesis")
+    result = critic.evaluate_content(draft_payload.get("draft", ""), criteria, thesis=thesis)
     payload = {
         "paper": paper_ctx["slug"],
         "draft_source": str(files[-1].relative_to(ROOT)),
@@ -923,15 +957,15 @@ def read_current():
     if not CURRENT.exists():
         return None
     val = CURRENT.read_text(encoding="utf-8").strip()
-    return val or None
+    return normalize_slug(val) if val else None
 
 
 def paper_dir(slug):
-    return PAPERS / slug
+    return PAPERS / normalize_slug(slug)
 
 
 def parse_frontmatter(path):
-    """Minimal YAML frontmatter parser: scalars and inline lists only."""
+    """Minimal YAML frontmatter parser supporting scalars, inline lists, and simple multiline lists."""
     if not path.exists():
         return {}
     text = path.read_text(encoding="utf-8")
@@ -939,18 +973,37 @@ def parse_frontmatter(path):
     if not m:
         return {}
     fm = {}
-    for line in m.group(1).splitlines():
+    lines = m.group(1).splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         if ":" not in line or line.lstrip().startswith("#"):
+            i += 1
             continue
         key, _, val = line.partition(":")
         key = key.strip()
         val = val.strip()
         if val.startswith("[") and val.endswith("]"):
             inner = val[1:-1].strip()
-            fm[key] = ([x.strip().strip('"').strip("'") for x in inner.split(",") if x.strip()]
-                       if inner else [])
+            fm[key] = ([x.strip().strip('"').strip("'") for x in inner.split(",") if x.strip()] if inner else [])
+        elif not val:
+            items = []
+            j = i + 1
+            while j < len(lines):
+                nxt = lines[j].strip()
+                if nxt.startswith("- "):
+                    items.append(nxt[2:].strip().strip('"').strip("'"))
+                    j += 1
+                    continue
+                if not nxt:
+                    j += 1
+                    continue
+                break
+            fm[key] = items
+            i = j - 1
         else:
             fm[key] = val.strip('"').strip("'")
+        i += 1
     return fm
 
 
