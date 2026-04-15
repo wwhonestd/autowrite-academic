@@ -29,12 +29,12 @@ class WriterAgent(BaseAgent):
 
         paragraphs = [intro]
         if claim_sentence:
-            paragraphs.append(f"The core evidentiary pattern can be summarized as follows: {claim_sentence}")
-        paragraphs.append(f"These observations are drawn from {sources} and together suggest a provisional mechanism linking the section topic to the broader argument.")
+            paragraphs.append(f"The available evidence suggests the following pattern: {claim_sentence}")
+        paragraphs.append(f"Taken together, materials from {sources} indicate that the topic is linked to a broader governance mechanism, although the evidence base remains provisional.")
         if thesis and thesis.strip() and not thesis.startswith("[待填写"):
-            paragraphs.append("In a fuller revision, this section should explicitly connect these observations back to the thesis and state why alternative interpretations are weaker.")
+            paragraphs.append("A stronger revision should connect these observations directly to the thesis, clarify the mechanism at stake, and explain why competing interpretations are less convincing.")
         else:
-            paragraphs.append("In a fuller revision, this section should add a clear thesis anchor, explain the causal mechanism, and address at least one plausible counterargument.")
+            paragraphs.append("A stronger revision should supply a concrete thesis anchor, clarify the mechanism at stake, and introduce at least one explicit counterargument.")
         return "\n\n".join(paragraphs)
 
     def integrate_with_paper(self, section_content: str):

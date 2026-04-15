@@ -13,6 +13,7 @@ Design: one source of truth per paper (papers/<slug>/paper.md frontmatter).
 Zero external deps. Reuses git for history and incremental diffing.
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -336,8 +337,9 @@ def merge_research_into_graph(slug, payload):
         existing_edges.add(key)
         return True
 
+    topic_hash = hashlib.sha1(f"{topic}|{source_file}".encode("utf-8")).hexdigest()[:12]
     topic_id, added = ensure_node(
-        f"concept_research_{re.sub(r'[^a-z0-9_]+', '_', topic.lower())[:40]}",
+        f"concept_research_{topic_hash}",
         "CONCEPT",
         topic,
         "research_run",
@@ -348,8 +350,9 @@ def merge_research_into_graph(slug, payload):
 
     for q_idx, item in enumerate(payload.get("evidence", []), start=1):
         question = item.get("question", f"question_{q_idx}")[:200]
+        claim_hash = hashlib.sha1(f"{question}|{source_file}|{run_id}".encode("utf-8")).hexdigest()[:12]
         claim_id, added = ensure_node(
-            f"claim_research_{run_id}_{re.sub(r'[^a-z0-9_]+', '_', question.lower())[:50]}",
+            f"claim_research_{claim_hash}",
             "CLAIM",
             question,
             "research_run",
@@ -363,8 +366,9 @@ def merge_research_into_graph(slug, payload):
         for f_idx, finding in enumerate(item.get("findings", []), start=1):
             evidence_label = finding.get("claim", "")[:200]
             evidence_source = finding.get("source", source_file)
+            evidence_hash = hashlib.sha1(f"{evidence_label}|{evidence_source}|{run_id}|{f_idx}".encode("utf-8")).hexdigest()[:12]
             evidence_id, added = ensure_node(
-                f"evidence_research_{run_id}_{re.sub(r'[^a-z0-9_]+', '_', evidence_label.lower())[:50]}_{f_idx}",
+                f"evidence_research_{evidence_hash}",
                 "EVIDENCE",
                 evidence_label,
                 "research_run",
@@ -596,9 +600,9 @@ def score_current_paper():
     latest_research_payload = latest_research[1] if latest_research else {}
     total_findings = sum(len(item.get("findings", [])) for item in latest_research_payload.get("evidence", [])) if latest_research_payload else 0
 
-    if total_findings >= 6 and validation_items >= 3:
+    if total_findings >= 6 and validation_items >= 3 and validity_score >= 0.75:
         evidence_grounding = 3
-    elif total_findings >= 2:
+    elif total_findings >= 3 and validation_items >= 1:
         evidence_grounding = 2
     elif total_findings >= 1:
         evidence_grounding = 1
