@@ -1,0 +1,15 @@
+{
+  "paper": "governance-safety-security",
+  "topic": "administrative efficiency incentives",
+  "snapshot": "papers/governance-safety-security/snapshots/20260415-002008.json",
+  "decision": {
+    "paper": "governance-safety-security",
+    "old_total": 11,
+    "new_total": 12,
+    "decision": "keep",
+    "reason": "score improved from 11 to 12",
+    "generated_at": "2026-04-15T00:20:08",
+    "saved_to": "papers/governance-safety-security/decisions/20260415-002008.json"
+  },
+  "rollback": null
+}

@@ -357,6 +357,50 @@ def save_artifact(slug, artifact_type, payload):
     return out
 
 
+def begin_iteration_snapshot(slug):
+    paper_path = paper_dir(slug)
+    snapshots_dir = paper_path / "snapshots"
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    snapshot_path = snapshots_dir / f"{stamp}.json"
+
+    paper_md = paper_path / "paper.md"
+    graph_path = paper_path / "paper_graph.json"
+    results_path = paper_path / "results.tsv"
+
+    payload = {
+        "slug": slug,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "paper_md": paper_md.read_text(encoding="utf-8") if paper_md.exists() else None,
+        "paper_graph_json": graph_path.read_text(encoding="utf-8") if graph_path.exists() else None,
+        "results_tsv": results_path.read_text(encoding="utf-8") if results_path.exists() else None,
+    }
+    snapshot_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return snapshot_path
+
+
+def restore_iteration_snapshot(slug, snapshot_path):
+    paper_path = paper_dir(slug)
+    payload = json.loads(Path(snapshot_path).read_text(encoding="utf-8"))
+
+    paper_md = paper_path / "paper.md"
+    graph_path = paper_path / "paper_graph.json"
+    results_path = paper_path / "results.tsv"
+
+    if payload.get("paper_md") is not None:
+        paper_md.write_text(payload["paper_md"], encoding="utf-8")
+    if payload.get("paper_graph_json") is not None:
+        graph_path.write_text(payload["paper_graph_json"], encoding="utf-8")
+    if payload.get("results_tsv") is not None:
+        results_path.write_text(payload["results_tsv"], encoding="utf-8")
+
+    return {
+        "paper_md": str(paper_md.relative_to(ROOT)),
+        "paper_graph_json": str(graph_path.relative_to(ROOT)),
+        "results_tsv": str(results_path.relative_to(ROOT)),
+    }
+
+
 def ensure_paper_md(slug):
     paper_path = paper_dir(slug)
     paper_path.mkdir(parents=True, exist_ok=True)
@@ -388,23 +432,35 @@ def apply_latest_draft(section_title=None):
     paper_md = ensure_paper_md(paper_ctx["slug"])
     text = paper_md.read_text(encoding="utf-8")
     title = section_title or draft_payload.get("section_title") or "Agent Draft"
-    section_block = f"\n\n## {title}\n\n{draft_payload.get('draft', '').strip()}\n"
-    if f"## {title}\n" in text:
-        text += f"\n\n[Updated draft applied at {datetime.now().isoformat(timespec='seconds')}]\n{draft_payload.get('draft', '').strip()}\n"
+    draft_body = draft_payload.get('draft', '').strip()
+    pattern = re.compile(rf"(^##\s+{re.escape(title)}\s*$)(.*?)(?=^##\s+|\Z)", re.MULTILINE | re.DOTALL)
+    match = pattern.search(text)
+
+    mode = "append"
+    previous_excerpt = None
+    if match:
+        mode = "replace"
+        previous_excerpt = match.group(2).strip()[:300]
+        replacement = f"## {title}\n\n{draft_body}\n\n"
+        text = text[:match.start()] + replacement + text[match.end():]
     else:
-        text += section_block
+        text = text.rstrip() + f"\n\n## {title}\n\n{draft_body}\n"
+
     paper_md.write_text(text, encoding="utf-8")
 
     payload = {
         "paper": paper_ctx["slug"],
         "draft_source": str(files[-1].relative_to(ROOT)),
         "applied_section": title,
+        "mode": mode,
+        "previous_excerpt": previous_excerpt,
+        "new_excerpt": draft_body[:300],
         "paper_md": str(paper_md.relative_to(ROOT)),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
     out = save_artifact(paper_ctx["slug"], "applied_drafts", payload)
     payload["saved_to"] = str(out.relative_to(ROOT))
-    append_generic_result(paper_ctx["slug"], "apply_draft", "recorded", "agent_run", f"applied draft to section: {title}")
+    append_generic_result(paper_ctx["slug"], "apply_draft", "recorded", "agent_run", f"applied draft to section: {title} ({mode})")
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
@@ -456,7 +512,7 @@ def score_current_paper():
         citation_validity = 3
     elif validation_items >= 1 and validity_score >= 0.75:
         citation_validity = 2
-    elif latest_validation is not None:
+    elif validation_items >= 1:
         citation_validity = 1
     else:
         citation_validity = 0
@@ -658,6 +714,12 @@ def decide_keep_discard(slug):
 
 
 def run_iterate(topic, section_title=None):
+    paper_ctx = get_current_paper_context()
+    if not paper_ctx:
+        sys.exit("error: no active paper")
+
+    snapshot_path = begin_iteration_snapshot(paper_ctx["slug"])
+
     run_research(topic)
     run_write(section_title=section_title)
     apply_latest_draft(section_title=section_title)
@@ -665,13 +727,30 @@ def run_iterate(topic, section_title=None):
     run_validate()
     score_current_paper()
 
-    paper_ctx = get_current_paper_context()
     decision = decide_keep_discard(paper_ctx["slug"])
-    print(json.dumps({
+    rollback = None
+    if decision["decision"] == "discard":
+        rollback = restore_iteration_snapshot(paper_ctx["slug"], snapshot_path)
+        append_generic_result(
+            paper_ctx["slug"],
+            "discard_rollback",
+            "recorded",
+            "agent_run",
+            "restored snapshot after discard",
+            old_score=decision["old_total"],
+            new_score=decision["new_total"],
+        )
+
+    summary = {
         "paper": paper_ctx["slug"],
         "topic": topic,
+        "snapshot": str(Path(snapshot_path).relative_to(ROOT)),
         "decision": decision,
-    }, ensure_ascii=False, indent=2))
+        "rollback": rollback,
+    }
+    out = save_artifact(paper_ctx["slug"], "iterations", summary)
+    summary["saved_to"] = str(out.relative_to(ROOT))
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
 def run_research(topic):

@@ -199,11 +199,38 @@ git commit -m "iteration: add evidence for X dimension"
 │   │       └── GRAPH_REPORT.md      # Graph diagnostics & statistics
 │   └── <another-slug>/              # Multiple papers coexist with no collision
 │
-└── raw/                              # Shared corpus (git-tracked)
-    ├── source1.md
+└── raw/                              # Shared corpus directory (kept in repo via .gitkeep; user materials ignored)
+    ├── .gitkeep
+    ├── source1.md                    # user-added local materials (ignored by git)
     ├── source2.md
-    └── ... (174+ documents for papers)
+    └── ...
 ```
+
+### Runtime and generated artifacts
+
+The project now generates working artifacts under each paper directory, for example:
+- `research_runs/`
+- `drafts/`
+- `applied_drafts/`
+- `critiques/`
+- `validations/`
+- `scores/`
+- `decisions/`
+- `snapshots/`
+- `iterations/`
+
+These are part of the writing workflow history.
+
+The runtime state directory `.autowrite/` is **local only** and ignored by git.
+
+### Discard / rollback behavior
+
+When an iteration ends with `discard`, the system restores the main transactional files from a snapshot:
+- `paper.md`
+- `paper_graph.json`
+- `results.tsv`
+
+It does **not** delete generated artifact files like `research_runs/`, `drafts/`, or `decisions/`; those remain as audit history.
 
 ---
 
