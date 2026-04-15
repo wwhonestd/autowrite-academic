@@ -41,3 +41,8 @@ iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	e115da0	11	11	decision	discard	agent_run	score did not improve (11 -> 11)
 -	c50053b	-	-	write	recorded	agent_run	draft generated: public service and ecological governance coordination
 -	c50053b	11	11	score	recorded	agent_run	rubric score total=11/18
+-	a9268b8	-	-	research	recorded	agent_run	run research: 4 questions, 0 findings, topic=policy stability and social equity
+-	a9268b8	-	-	write	recorded	agent_run	draft generated: Policy Stability Draft
+-	a9268b8	-	-	validate	recorded	agent_run	validated 0 findings
+-	a9268b8	11	10	score	recorded	agent_run	rubric score total=10/18
+-	a9268b8	11	10	decision	discard	agent_run	score did not improve (11 -> 10)

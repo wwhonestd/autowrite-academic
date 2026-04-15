@@ -37,28 +37,23 @@ class WriterAgent(BaseAgent):
         print(section_content)
 
     def receive_message(self, message: Message):
-        if "draft section" in message.content.lower():
-            parts = message.content.split(":")
-            if len(parts) > 1:
-                topic_and_evidence_str = parts[1].strip()
-                # Very basic parsing: assume topic is before ';', evidence is a list of dicts string
-                if '; ' in topic_and_evidence_str:
-                    topic, evidence_str = topic_and_evidence_str.split('; ', 1)
-                    try:
-                        # This is highly unsafe and for demonstration only.
-                        # In a real system, use proper serialization/deserialization.
-                        evidence = eval(evidence_str)
-                        if isinstance(evidence, list):
-                            draft = self.draft_section(topic, evidence)
-                            self.integrate_with_paper(draft)
-                        else:
-                            print("Invalid evidence format.")
-                    except Exception as e:
-                        print(f"Error processing evidence: {e}")
-                else:
-                    print("Invalid message format for drafting section.")
-            else:
-                print("Invalid message format for drafting section.")
+        if "draft section" not in message.content.lower():
+            return
+
+        payload = message.metadata or {}
+        topic = payload.get("topic")
+        evidence = payload.get("evidence", [])
+        thesis = payload.get("thesis")
+        if not topic:
+            print("Invalid message payload for drafting section.")
+            return
+
+        if not isinstance(evidence, list):
+            print("Invalid evidence payload for drafting section.")
+            return
+
+        draft = self.draft_section(topic, evidence, thesis=thesis)
+        self.integrate_with_paper(draft)
 
     def run(self, *args, **kwargs):
         print("Writer agent is ready. Waiting for drafting instructions.")

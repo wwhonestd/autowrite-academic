@@ -44,20 +44,18 @@ class CriticAgent(BaseAgent):
         }
 
     def receive_message(self, message: Message):
-        if "evaluate" in message.content.lower():
-            parts = message.content.split(":")
-            if len(parts) > 1:
-                content_and_criteria = parts[1].strip()
-                # Basic parsing: assume criteria are comma-separated after a semicolon
-                if '; ' in content_and_criteria:
-                    content, criteria_str = content_and_criteria.split('; ', 1)
-                    criteria = [c.strip() for c in criteria_str.split(',') if c.strip()]
-                    result = self.evaluate_content(content, criteria)
-                    print(f"Critique result: {result}")
-                else:
-                    print("Invalid message format for critique.")
-            else:
-                print("Invalid message format for critique.")
+        if "evaluate" not in message.content.lower():
+            return
+
+        payload = message.metadata or {}
+        content = payload.get("content", "")
+        criteria = payload.get("criteria", [])
+        thesis = payload.get("thesis")
+        if not isinstance(criteria, list):
+            print("Invalid criteria payload for critique.")
+            return
+        result = self.evaluate_content(content, criteria, thesis=thesis)
+        print(f"Critique result: {result}")
 
     def run(self, *args, **kwargs):
         print("Critic agent is ready. Waiting for content evaluation requests.")

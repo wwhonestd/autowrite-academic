@@ -3,11 +3,12 @@
     "slug": "governance-safety-security",
     "created_by": "agent_research",
     "last_scan_commit": null,
-    "last_agent_research_at": "2026-04-15T01:23:49",
-    "last_research_run_id": "20260415_012349",
+    "last_agent_research_at": "2026-04-15T01:46:53",
+    "last_research_run_id": "20260415_014653",
     "merged_research_runs": [
       "20260415_011602",
-      "20260415_012349"
+      "20260415_012349",
+      "20260415_014653"
     ]
   },
   "nodes": [
@@ -230,6 +231,46 @@
       "section": "research_run",
       "source_file": "papers/governance-safety-security/research_runs/20260415-012349.json",
       "run_id": "20260415_012349"
+    },
+    {
+      "id": "concept_research_policy_stability_and_social_equity",
+      "type": "CONCEPT",
+      "label": "policy stability and social equity",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260415-014653.json",
+      "run_id": "20260415_014653"
+    },
+    {
+      "id": "claim_research_what_are_the_key_aspects_of_policy_stability_and_s",
+      "type": "CLAIM",
+      "label": "What are the key aspects of policy stability and social equity?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260415-014653.json",
+      "run_id": "20260415_014653"
+    },
+    {
+      "id": "claim_research_how_does_policy_stability_and_social_equity_impact",
+      "type": "CLAIM",
+      "label": "How does policy stability and social equity impact other areas?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260415-014653.json",
+      "run_id": "20260415_014653"
+    },
+    {
+      "id": "claim_research_what_are_the_latest_findings_on_policy_stability_a",
+      "type": "CLAIM",
+      "label": "What are the latest findings on policy stability and social equity?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260415-014653.json",
+      "run_id": "20260415_014653"
+    },
+    {
+      "id": "claim_research_how_should_evidence_on_policy_stability_and_social",
+      "type": "CLAIM",
+      "label": "How should evidence on policy stability and social equity be positioned relative to the existing section Abstract?",
+      "section": "research_run",
+      "source_file": "papers/governance-safety-security/research_runs/20260415-014653.json",
+      "run_id": "20260415_014653"
     }
   ],
   "edges": [
@@ -393,11 +434,39 @@
       "relation": "EXTENDS",
       "confidence": "AGENT",
       "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_policy_stability_and_social_equity",
+      "target": "claim_research_what_are_the_key_aspects_of_policy_stability_and_s",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_policy_stability_and_social_equity",
+      "target": "claim_research_how_does_policy_stability_and_social_equity_impact",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_policy_stability_and_social_equity",
+      "target": "claim_research_what_are_the_latest_findings_on_policy_stability_a",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
+    },
+    {
+      "source": "concept_research_policy_stability_and_social_equity",
+      "target": "claim_research_how_should_evidence_on_policy_stability_and_social",
+      "relation": "EXTENDS",
+      "confidence": "AGENT",
+      "confidence_score": 0.6
     }
   ],
   "metadata": {
-    "research_runs": 7,
-    "total_nodes": 30,
-    "total_edges": 23
+    "research_runs": 8,
+    "total_nodes": 35,
+    "total_edges": 27
   }
 }

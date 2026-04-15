@@ -616,7 +616,12 @@ def score_current_paper():
     else:
         graph_coherence = 0
 
+    thesis_text = paper_ctx.get("frontmatter", {}).get("thesis", "")
+    thesis_placeholder = thesis_text.startswith("[待填写")
     total = evidence_grounding + citation_validity + argument_chain + counterargument + clarity + graph_coherence
+    if thesis_placeholder:
+        total = max(total - 1, 0)
+
     payload = {
         "paper": paper_ctx["slug"],
         "scores": {

@@ -34,23 +34,16 @@ class ValidatorAgent(BaseAgent):
         return validation_results
 
     def receive_message(self, message: Message):
-        if "validate evidence" in message.content.lower():
-            parts = message.content.split(":")
-            if len(parts) > 1:
-                evidence_str = parts[1].strip()
-                try:
-                    # This is highly unsafe and for demonstration only.
-                    # In a real system, use proper serialization/deserialization.
-                    evidence = eval(evidence_str)
-                    if isinstance(evidence, list):
-                        results = self.validate_evidence(evidence)
-                        print(f"Validation results: {results}")
-                    else:
-                        print("Invalid evidence format.")
-                except Exception as e:
-                    print(f"Error processing evidence for validation: {e}")
-            else:
-                print("Invalid message format for validation.")
+        if "validate evidence" not in message.content.lower():
+            return
+
+        payload = message.metadata or {}
+        evidence = payload.get("evidence", [])
+        if not isinstance(evidence, list):
+            print("Invalid evidence payload for validation.")
+            return
+        results = self.validate_evidence(evidence)
+        print(f"Validation results: {results}")
 
     def run(self, *args, **kwargs):
         print("Validator agent is ready. Waiting for evidence validation requests.")
