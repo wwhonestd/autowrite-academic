@@ -29,6 +29,8 @@ class CriticAgent(BaseAgent):
             feedback_parts.append("Reasoning links between evidence and conclusion should be stronger.")
         if clarity <= 1:
             feedback_parts.append("Draft structure is still too thin.")
+        if evidence_grounding <= 1:
+            feedback_parts.append("Evidence density is still too low for a confident claim chain.")
         if not feedback_parts:
             feedback_parts.append("Draft is structurally usable but still needs stronger evidence density.")
 

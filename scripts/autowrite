@@ -496,21 +496,26 @@ def route_section_title(topic, existing_titles, requested_title=None):
     topic_lower = (topic or "").lower()
     existing_titles = existing_titles or []
     routing_rules = [
-        (["finding", "evidence", "indicator", "service", "public service"], ["findings"]),
-        (["discussion", "implication", "limitation", "counterargument"], ["discussion"]),
-        (["method", "mechanism", "pathway"], ["methodology", "framework"]),
+        (["finding", "evidence", "indicator", "service", "public service", "equity"], ["findings"]),
+        (["discussion", "implication", "limitation", "counterargument", "governance", "security", "safety"], ["discussion"]),
+        (["method", "mechanism", "pathway", "framework"], ["methodology", "framework"]),
         (["conclusion", "summary", "recommendation"], ["conclusion"]),
-        (["ecological", "governance", "development"], ["discussion", "findings"]),
+        (["ecological", "development", "quality", "innovation"], ["findings", "discussion"]),
     ]
 
     for topic_keys, title_keys in routing_rules:
         if any(k in topic_lower for k in topic_keys):
-            for title in existing_titles:
-                title_lower = title.lower()
-                if any(k in title_lower for k in title_keys):
-                    return title
+            for key in title_keys:
+                for title in existing_titles:
+                    if key in title.lower():
+                        return title
 
-    return "Agent Draft"
+    for fallback in ["5. Findings", "6. Discussion", "7. Conclusion"]:
+        for title in existing_titles:
+            if fallback.lower() == title.lower():
+                return title
+
+    return existing_titles[0] if existing_titles else "Agent Draft"
 
 
 

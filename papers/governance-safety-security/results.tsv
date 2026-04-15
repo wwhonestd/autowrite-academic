@@ -64,3 +64,6 @@ iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	8f18d07	7	7	score	recorded	agent_run	rubric score total=7/18
 -	84c3d3b	7	7	score	recorded	agent_run	rubric score total=7/18
 -	84c3d3b	7	7	decision	discard	agent_run	score did not improve (7 -> 7)
+-	5a756bc	-	-	write	recorded	agent_run	draft generated: 6. Discussion
+-	5a756bc	-	-	critique	recorded	agent_run	critique generated from latest draft
+-	5a756bc	7	7	score	recorded	agent_run	rubric score total=7/18
