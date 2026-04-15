@@ -359,12 +359,15 @@ def find_orphan_evidence(node_map, edges):
 
 
 def find_unsupported_claims(node_map, edges):
-    """Claim nodes with no SUPPORTS edge pointing to them."""
+    """Claim nodes with no evidence-style SUPPORTS edge pointing to them."""
     claim_ids = {nid for nid, n in node_map.items()
                  if n.get("type") == "CLAIM" or nid.startswith("claim_")}
     supported = set()
     for e in edges:
-        if e.get("relation") == "SUPPORTS":
+        if e.get("relation") != "SUPPORTS":
+            continue
+        src = node_map.get(e["source"], {})
+        if src.get("type") == "EVIDENCE" or str(e["source"]).startswith("evidence_"):
             supported.add(e["target"])
     return [node_map[nid] for nid in claim_ids - supported if nid in node_map]
 
@@ -683,7 +686,7 @@ Evidence nodes not connected to any claim — unused citations.
     report += f"""
 ## Cross-Community Bridges ({len(cross_edges)})
 
-Edges connecting different communities — the paper's structural backbone.
+For the current connected-component community model, this value is reported as N/A by design.
 
 """
     if cross_edges:
@@ -692,7 +695,7 @@ Edges connecting different communities — the paper's structural backbone.
             tgt = node_map.get(e["target"], {}).get("label", e["target"])
             report += f"- {src} →[{e.get('relation', '')}]→ {tgt}\n"
     else:
-        report += "None — single community or no cross-links.\n"
+        report += "N/A under the current community definition.\n"
 
     report += f"""
 ## Communities ({len(communities)})

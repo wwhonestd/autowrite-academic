@@ -748,9 +748,17 @@ papers/
       ├─ paper.md       # Thesis + body
       ├─ paper_graph.json
       ├─ results.tsv    # Iteration log
+      ├─ research_runs/
+      ├─ drafts/
+      ├─ critiques/
+      ├─ validations/
+      ├─ scores/
+      ├─ decisions/
+      ├─ snapshots/
+      ├─ iterations/
       └─ graphify-out/
 
-raw/                    # Source materials
+raw/                    # Supported local source materials (.md / .txt)
 ```
 
 ## Quality Rubric (0-18)
@@ -784,14 +792,20 @@ Active paper tracked in `papers/.current`.
 ## Incremental Knowledge Base
 
 ```bash
-# Add to raw/ and commit
-git add raw/ && git commit
+# Add supported source files to raw/
+cp ~/my-notes/*.md raw/
+cp ~/exports/*.txt raw/
 
 # Sync (only changed files rescanned)
 scripts/autowrite kb-sync
 ```
 
 Uses git diff on `last_scan_commit` for incremental updates.
+
+Notes:
+- current built-in scanners read `.md` and `.txt`
+- PDF ingestion is not implemented yet
+- `raw/` is kept in the repo via `.gitkeep`, but user materials are local-only and ignored by git
 
 ## Example Papers in Development
 
