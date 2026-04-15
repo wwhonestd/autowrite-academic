@@ -1,0 +1,34 @@
+{
+  "run_id": "20260415_015503",
+  "topic": "development quality and risk prevention",
+  "paper": {
+    "slug": "governance-safety-security",
+    "thesis": "[待填写 — 一句话核心论点。所有 edit 必须服务于它，否则 discard。]"
+  },
+  "raw_dir_exists": true,
+  "questions": [
+    "What are the key aspects of development quality and risk prevention?",
+    "How does development quality and risk prevention impact other areas?",
+    "What are the latest findings on development quality and risk prevention?",
+    "How should evidence on development quality and risk prevention be positioned relative to the existing section Abstract?"
+  ],
+  "evidence": [
+    {
+      "question": "What are the key aspects of development quality and risk prevention?",
+      "findings": []
+    },
+    {
+      "question": "How does development quality and risk prevention impact other areas?",
+      "findings": []
+    },
+    {
+      "question": "What are the latest findings on development quality and risk prevention?",
+      "findings": []
+    },
+    {
+      "question": "How should evidence on development quality and risk prevention be positioned relative to the existing section Abstract?",
+      "findings": []
+    }
+  ],
+  "generated_at": "2026-04-15T01:55:03"
+}

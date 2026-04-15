@@ -20,15 +20,22 @@ class WriterAgent(BaseAgent):
                 intro + " Current evidence is still limited, so this draft serves as a structural placeholder for later expansion."
             )
 
-        lines = [intro]
         top_items = evidence[:3]
-        for item in top_items:
-            lines.append(f"Evidence from {item.get('source', 'unknown')} suggests that {item.get('claim', 'no claim')}.")
+        claim_sentence = " ".join(
+            item.get('claim', 'no claim').rstrip('。.') + '.'
+            for item in top_items if item.get('claim')
+        )
+        sources = ", ".join(item.get('source', 'unknown') for item in top_items)
+
+        paragraphs = [intro]
+        if claim_sentence:
+            paragraphs.append(f"The current evidence base highlights the following pattern: {claim_sentence}")
+        paragraphs.append(f"These observations are drawn from {sources} and should be interpreted as provisional support rather than final proof.")
         if thesis and thesis.strip() and not thesis.startswith("[待填写"):
-            lines.append("These points should be explicitly tied back to the thesis in the next revision.")
+            paragraphs.append("The next revision should make the causal link to the thesis more explicit and integrate counterarguments directly into the section.")
         else:
-            lines.append("The section still needs a stronger thesis anchor and clearer causal links in a later iteration.")
-        return "\n\n".join(lines)
+            paragraphs.append("The section still needs a stronger thesis anchor, clearer causal linkage, and more explicit counterarguments in a later iteration.")
+        return "\n\n".join(paragraphs)
 
     def integrate_with_paper(self, section_content: str):
         print("Writer integrating drafted section into paper...")

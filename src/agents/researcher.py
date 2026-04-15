@@ -41,8 +41,8 @@ class ResearcherAgent(BaseAgent):
         if raw_dir is None or not raw_dir.exists():
             return []
 
-        keyword_tokens = [w.lower() for w in question.split() if len(w.strip()) >= 3]
-        keywords = set(keyword_tokens)
+        token_candidates = [w.lower() for w in question.split() if len(w.strip()) >= 3]
+        keywords = set(token_candidates)
         findings: List[Dict[str, Any]] = []
         fallback_findings: List[Dict[str, Any]] = []
 
@@ -60,19 +60,22 @@ class ResearcherAgent(BaseAgent):
                     "claim": lines[0][:300],
                     "support": 0.2,
                     "score": 0,
+                    "match_context": {"fallback": True, "matched_keywords": []},
                 })
 
             best_score = 0
             matched_line = None
+            matched_keywords = []
             for line in lines:
                 line_lower = line.lower()
-                token_hits = sum(1 for kw in keywords if kw in line_lower)
-                filename_hits = sum(1 for kw in keywords if kw in filename_lower)
+                token_matches = [kw for kw in keywords if kw in line_lower]
+                filename_matches = [kw for kw in keywords if kw in filename_lower]
                 chinese_bonus = 1 if any(ord(ch) > 127 for ch in line[:50]) and any(ord(ch) > 127 for ch in question) else 0
-                current = token_hits + filename_hits + chinese_bonus
+                current = len(token_matches) + len(filename_matches) + chinese_bonus
                 if current > best_score:
                     best_score = current
                     matched_line = line
+                    matched_keywords = sorted(set(token_matches + filename_matches))
 
             if best_score > 0 and matched_line:
                 findings.append({
@@ -80,6 +83,10 @@ class ResearcherAgent(BaseAgent):
                     "claim": matched_line[:300],
                     "support": min(0.35 + best_score * 0.12, 0.95),
                     "score": best_score,
+                    "match_context": {
+                        "fallback": False,
+                        "matched_keywords": matched_keywords,
+                    },
                 })
 
         findings.sort(key=lambda x: (x.get("score", 0), x.get("support", 0)), reverse=True)

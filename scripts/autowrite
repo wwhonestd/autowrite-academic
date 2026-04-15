@@ -555,12 +555,15 @@ def score_current_paper():
     argument_hint = critique_data.get("result", {}).get("scores", {}).get("argument_strength", 0)
     validity_score = validation_data.get("result", {}).get("validity_score", 0)
     validation_items = validation_data.get("validated_items", 0)
+    latest_research = latest_research_run(paper_ctx["slug"])
+    latest_research_payload = latest_research[1] if latest_research else {}
+    total_findings = sum(len(item.get("findings", [])) for item in latest_research_payload.get("evidence", [])) if latest_research_payload else 0
 
-    if node_count >= 20:
+    if total_findings >= 6 and node_count >= 20:
         evidence_grounding = 3
-    elif node_count >= 10:
+    elif total_findings >= 2 and node_count >= 10:
         evidence_grounding = 2
-    elif node_count >= 1:
+    elif total_findings >= 1 or node_count >= 1:
         evidence_grounding = 1
     else:
         evidence_grounding = 0
