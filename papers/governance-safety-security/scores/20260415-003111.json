@@ -1,0 +1,14 @@
+{
+  "paper": "governance-safety-security",
+  "scores": {
+    "evidence_grounding": 3,
+    "citation_validity": 0,
+    "argument_chain": 3,
+    "counterargument": 1,
+    "clarity": 1,
+    "graph_coherence": 3
+  },
+  "old_total": 12,
+  "total": 11,
+  "generated_at": "2026-04-15T00:31:11"
+}

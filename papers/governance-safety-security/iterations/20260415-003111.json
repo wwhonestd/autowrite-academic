@@ -1,0 +1,19 @@
+{
+  "paper": "governance-safety-security",
+  "topic": "ecological governance incentives",
+  "snapshot": "papers/governance-safety-security/snapshots/20260415-003111.json",
+  "decision": {
+    "paper": "governance-safety-security",
+    "old_total": 12,
+    "new_total": 11,
+    "decision": "discard",
+    "reason": "score did not improve (12 -> 11)",
+    "generated_at": "2026-04-15T00:31:11",
+    "saved_to": "papers/governance-safety-security/decisions/20260415-003111.json"
+  },
+  "rollback": {
+    "paper_md": "papers/governance-safety-security/paper.md",
+    "paper_graph_json": "papers/governance-safety-security/paper_graph.json",
+    "results_tsv": "papers/governance-safety-security/results.tsv"
+  }
+}

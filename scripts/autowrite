@@ -259,62 +259,93 @@ def merge_research_into_graph(slug, payload):
     data.setdefault("metadata", {})
     data.setdefault("_meta", {})
 
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    topic = payload.get("topic", "research")
-    topic_id = f"concept_research_{re.sub(r'[^a-z0-9_]+', '_', topic.lower())[:40]}_{stamp}"
-    data["nodes"].append({
-        "id": topic_id,
-        "type": "CONCEPT",
-        "label": topic,
-        "section": "research_run",
-        "source_file": payload.get("saved_to", "agent_run"),
-    })
+    run_id = payload.get("run_id") or datetime.now().strftime("%Y%m%d_%H%M%S")
+    merged_runs = set(data["_meta"].get("merged_research_runs", []))
+    if run_id in merged_runs:
+        return {"graph_path": graph_path, "nodes_added": 0, "edges_added": 0}
 
-    node_count = 1
-    edge_count = 0
-    for q_idx, item in enumerate(payload.get("evidence", []), start=1):
-        question = item.get("question", f"question_{q_idx}")
-        claim_id = f"claim_research_{stamp}_{q_idx}"
+    topic = payload.get("topic", "research")
+    source_file = payload.get("saved_to", "agent_run")
+
+    existing_nodes = {(n.get("type"), n.get("label"), n.get("source_file")): n.get("id") for n in data["nodes"]}
+    existing_edges = {(e.get("source"), e.get("target"), e.get("relation")) for e in data["edges"]}
+
+    def ensure_node(node_id, node_type, label, section, source):
+        key = (node_type, label, source)
+        existing = existing_nodes.get(key)
+        if existing:
+            return existing, False
         data["nodes"].append({
-            "id": claim_id,
-            "type": "CLAIM",
-            "label": question[:200],
-            "section": "research_run",
-            "source_file": payload.get("saved_to", "agent_run"),
+            "id": node_id,
+            "type": node_type,
+            "label": label,
+            "section": section,
+            "source_file": source,
+            "run_id": run_id,
         })
+        existing_nodes[key] = node_id
+        return node_id, True
+
+    def ensure_edge(source, target, relation, confidence_score):
+        key = (source, target, relation)
+        if key in existing_edges:
+            return False
         data["edges"].append({
-            "source": topic_id,
-            "target": claim_id,
-            "relation": "EXTENDS",
+            "source": source,
+            "target": target,
+            "relation": relation,
             "confidence": "AGENT",
-            "confidence_score": 0.6,
+            "confidence_score": confidence_score,
         })
-        node_count += 1
-        edge_count += 1
+        existing_edges.add(key)
+        return True
+
+    topic_id, added = ensure_node(
+        f"concept_research_{re.sub(r'[^a-z0-9_]+', '_', topic.lower())[:40]}",
+        "CONCEPT",
+        topic,
+        "research_run",
+        source_file,
+    )
+    node_count = 1 if added else 0
+    edge_count = 0
+
+    for q_idx, item in enumerate(payload.get("evidence", []), start=1):
+        question = item.get("question", f"question_{q_idx}")[:200]
+        claim_id, added = ensure_node(
+            f"claim_research_{re.sub(r'[^a-z0-9_]+', '_', question.lower())[:50]}",
+            "CLAIM",
+            question,
+            "research_run",
+            source_file,
+        )
+        if added:
+            node_count += 1
+        if ensure_edge(topic_id, claim_id, "EXTENDS", 0.6):
+            edge_count += 1
 
         for f_idx, finding in enumerate(item.get("findings", []), start=1):
-            evidence_id = f"evidence_research_{stamp}_{q_idx}_{f_idx}"
-            data["nodes"].append({
-                "id": evidence_id,
-                "type": "EVIDENCE",
-                "label": finding.get("claim", "")[:200],
-                "section": "research_run",
-                "source_file": finding.get("source", payload.get("saved_to", "agent_run")),
-            })
-            data["edges"].append({
-                "source": claim_id,
-                "target": evidence_id,
-                "relation": "SUPPORTS",
-                "confidence": "AGENT",
-                "confidence_score": float(finding.get("support", 0.3)),
-            })
-            node_count += 1
-            edge_count += 1
+            evidence_label = finding.get("claim", "")[:200]
+            evidence_source = finding.get("source", source_file)
+            evidence_id, added = ensure_node(
+                f"evidence_research_{re.sub(r'[^a-z0-9_]+', '_', evidence_label.lower())[:50]}_{f_idx}",
+                "EVIDENCE",
+                evidence_label,
+                "research_run",
+                evidence_source,
+            )
+            if added:
+                node_count += 1
+            if ensure_edge(claim_id, evidence_id, "SUPPORTS", float(finding.get("support", 0.3))):
+                edge_count += 1
 
     data["metadata"]["research_runs"] = int(data["metadata"].get("research_runs", 0)) + 1
     data["metadata"]["total_nodes"] = len(data["nodes"])
     data["metadata"]["total_edges"] = len(data["edges"])
     data["_meta"]["last_agent_research_at"] = datetime.now().isoformat(timespec="seconds")
+    data["_meta"]["last_research_run_id"] = run_id
+    merged_runs.add(run_id)
+    data["_meta"]["merged_research_runs"] = sorted(merged_runs)
     graph_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"graph_path": graph_path, "nodes_added": node_count, "edges_added": edge_count}
 
@@ -761,6 +792,7 @@ def run_research(topic):
 
     paper_ctx = get_current_paper_context()
     raw_dir = RAW
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     questions = researcher.generate_research_questions(topic)
     evidence_by_question = []
@@ -772,6 +804,7 @@ def run_research(topic):
         })
 
     payload = {
+        "run_id": run_id,
         "topic": topic,
         "paper": {
             "slug": paper_ctx["slug"] if paper_ctx else None,

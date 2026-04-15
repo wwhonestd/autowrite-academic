@@ -8,12 +8,34 @@ class CriticAgent(BaseAgent):
 
     def evaluate_content(self, content: str, evaluation_criteria: List[str]) -> Dict[str, Any]:
         print(f"Critic evaluating content based on: {evaluation_criteria}")
-        evaluation_result = {"scores": {}, "feedback": ""}
-        # TODO: Implement LLM-based critique using evaluation_criteria
-        # Example: Check for clarity, argument strength, counterarguments, etc.
-        evaluation_result["scores"] = {"clarity": 2, "argument_strength": 1}
-        evaluation_result["feedback"] = "Content is mostly clear but could benefit from stronger counterarguments."
-        return evaluation_result
+        paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+        clarity = 3 if len(paragraphs) >= 3 else 2 if len(paragraphs) >= 2 else 1 if content.strip() else 0
+
+        lower = content.lower()
+        has_counter = any(token in lower for token in ["however", "but", "although", "counter", "然而", "但是", "不过", "反驳"])
+        argument_strength = 3 if any(token in lower for token in ["therefore", "thus", "because", "因此", "所以", "说明"]) else 2 if len(content) > 180 else 1 if content.strip() else 0
+        counterargument = 2 if has_counter else 1 if content.strip() else 0
+        evidence_grounding = 2 if "Evidence from" in content or "evidence" in lower else 1 if content.strip() else 0
+
+        feedback_parts = []
+        if not has_counter:
+            feedback_parts.append("Counterargument handling is still weak.")
+        if argument_strength <= 1:
+            feedback_parts.append("Reasoning links between evidence and conclusion should be stronger.")
+        if clarity <= 1:
+            feedback_parts.append("Draft structure is still too thin.")
+        if not feedback_parts:
+            feedback_parts.append("Draft is structurally usable but still needs stronger evidence density.")
+
+        return {
+            "scores": {
+                "clarity": clarity,
+                "argument_strength": argument_strength,
+                "counterargument": counterargument,
+                "evidence_grounding": evidence_grounding,
+            },
+            "feedback": " ".join(feedback_parts),
+        }
 
     def receive_message(self, message: Message):
         if "evaluate" in message.content.lower():

@@ -32,3 +32,4 @@ iteration	commit	old_score	new_score	dimension	status	eval_mode	note
 -	253e327	11	12	score	recorded	agent_run	rubric score total=12/18
 -	253e327	11	12	decision	keep	agent_run	score improved from 11 to 12
 -	253e327	-	-	apply_draft	recorded	agent_run	applied draft to section: Administrative Efficiency Draft (replace)
+-	3b6f2fd	12	11	discard_rollback	recorded	agent_run	restored snapshot after discard

@@ -1,0 +1,8 @@
+{
+  "paper": "governance-safety-security",
+  "old_total": 12,
+  "new_total": 11,
+  "decision": "discard",
+  "reason": "score did not improve (12 -> 11)",
+  "generated_at": "2026-04-15T00:31:11"
+}

@@ -1,0 +1,20 @@
+{
+  "paper": "governance-safety-security",
+  "draft_source": "papers/governance-safety-security/drafts/20260415-003111.json",
+  "criteria": [
+    "clarity",
+    "argument_strength",
+    "counterargument",
+    "evidence_grounding"
+  ],
+  "result": {
+    "scores": {
+      "clarity": 1,
+      "argument_strength": 1,
+      "counterargument": 1,
+      "evidence_grounding": 2
+    },
+    "feedback": "Counterargument handling is still weak. Reasoning links between evidence and conclusion should be stronger. Draft structure is still too thin."
+  },
+  "generated_at": "2026-04-15T00:31:11"
+}

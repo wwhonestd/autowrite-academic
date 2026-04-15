@@ -11,11 +11,18 @@ class WriterAgent(BaseAgent):
 
     def draft_section(self, topic: str, evidence: List[Dict[str, Any]]) -> str:
         print(f"Writer drafting section for topic: {topic}")
-        # TODO: Implement LLM-based writing to draft a section using evidence
-        draft = f"This section discusses {topic}. Based on the provided evidence:\n"
-        for item in evidence:
-            draft += f"- From {item.get('source', 'unknown')}: {item.get('claim', 'no claim')}\n"
-        return draft
+        if not evidence:
+            return (
+                f"This section discusses {topic}. "
+                f"Current evidence is still limited, so this draft serves as a structural placeholder for later expansion."
+            )
+
+        lines = [f"This section discusses {topic}."]
+        top_items = evidence[:3]
+        for item in top_items:
+            lines.append(f"Evidence from {item.get('source', 'unknown')} suggests that {item.get('claim', 'no claim')}.")
+        lines.append("Taken together, these materials indicate that the argument should be expanded with stronger citations and clearer causal links in a later iteration.")
+        return "\n\n".join(lines)
 
     def integrate_with_paper(self, section_content: str):
         print("Writer integrating drafted section into paper...")
