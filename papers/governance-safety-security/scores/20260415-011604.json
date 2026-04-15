@@ -1,0 +1,33 @@
+{
+  "paper": "governance-safety-security",
+  "scores": {
+    "evidence_grounding": 3,
+    "citation_validity": 0,
+    "argument_chain": 3,
+    "counterargument": 1,
+    "clarity": 1,
+    "graph_coherence": 3
+  },
+  "old_total": 11,
+  "total": 11,
+  "band": "developing",
+  "inputs": {
+    "graph_nodes": 25,
+    "graph_edges": 19,
+    "heading_count": 13,
+    "paragraph_count": 20,
+    "validation_items": 0,
+    "validity_score": 0.0,
+    "critique_present": true,
+    "validation_present": true
+  },
+  "rationale": {
+    "evidence_grounding": "node_count=25",
+    "citation_validity": "validation_items=0, validity_score=0.0",
+    "argument_chain": "heading_count=13, paragraph_count=20",
+    "counterargument": "argument_hint=1",
+    "clarity": "clarity_hint=1, paragraph_count=20",
+    "graph_coherence": "edge_count=19"
+  },
+  "generated_at": "2026-04-15T01:16:04"
+}

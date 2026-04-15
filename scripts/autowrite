@@ -463,6 +463,11 @@ def apply_latest_draft(section_title=None):
     paper_md = ensure_paper_md(paper_ctx["slug"])
     text = paper_md.read_text(encoding="utf-8")
     title = section_title or draft_payload.get("section_title") or "Agent Draft"
+    existing_titles = re.findall(r"^##\s+(.+)$", text, re.MULTILINE)
+    if title == "Agent Draft" and existing_titles:
+        preferred = [t for t in existing_titles if any(k in t.lower() for k in ["findings", "discussion", "conclusion", "methodology"])]
+        if preferred:
+            title = preferred[0]
     draft_body = draft_payload.get('draft', '').strip()
     pattern = re.compile(rf"(^##\s+{re.escape(title)}\s*$)(.*?)(?=^##\s+|\Z)", re.MULTILINE | re.DOTALL)
     match = pattern.search(text)
@@ -597,6 +602,30 @@ def score_current_paper():
         },
         "old_total": previous_score,
         "total": total,
+        "band": (
+            "excellent" if total >= 16 else
+            "good" if total >= 13 else
+            "developing" if total >= 7 else
+            "draft"
+        ),
+        "inputs": {
+            "graph_nodes": node_count,
+            "graph_edges": edge_count,
+            "heading_count": heading_count,
+            "paragraph_count": paragraph_count,
+            "validation_items": validation_items,
+            "validity_score": validity_score,
+            "critique_present": latest_critique is not None,
+            "validation_present": latest_validation is not None,
+        },
+        "rationale": {
+            "evidence_grounding": f"node_count={node_count}",
+            "citation_validity": f"validation_items={validation_items}, validity_score={validity_score}",
+            "argument_chain": f"heading_count={heading_count}, paragraph_count={paragraph_count}",
+            "counterargument": f"argument_hint={argument_hint}",
+            "clarity": f"clarity_hint={clarity_hint}, paragraph_count={paragraph_count}",
+            "graph_coherence": f"edge_count={edge_count}",
+        },
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
     out = save_artifact(paper_ctx["slug"], "scores", payload)
@@ -795,7 +824,9 @@ def run_research(topic):
     raw_dir = RAW
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    questions = researcher.generate_research_questions(topic)
+    thesis = (paper_ctx or {}).get("frontmatter", {}).get("thesis")
+    existing_sections = re.findall(r"^##\s+(.+)$", ensure_paper_md(paper_ctx['slug']).read_text(encoding='utf-8'), re.MULTILINE) if paper_ctx else []
+    questions = researcher.generate_research_questions(topic, thesis=thesis, existing_sections=existing_sections)
     evidence_by_question = []
     for question in questions:
         findings = researcher.retrieve_evidence(question, raw_dir=raw_dir)

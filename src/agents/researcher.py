@@ -11,14 +11,29 @@ class ResearcherAgent(BaseAgent):
         self.current_research_topic: Optional[str] = None
         self.research_questions: List[str] = []
 
-    def generate_research_questions(self, topic: str) -> List[str]:
+    def generate_research_questions(self, topic: str, thesis: str | None = None, existing_sections: Optional[List[str]] = None) -> List[str]:
         self.current_research_topic = topic
         print(f"Researcher generating questions for: {topic}")
-        self.research_questions = [
-            f"What are the key aspects of {topic}?",
-            f"How does {topic} impact other areas?",
-            f"What are the latest findings on {topic}?"
-        ]
+
+        thesis = (thesis or "").strip()
+        section_hint = existing_sections[0] if existing_sections else None
+        questions: List[str] = []
+
+        if thesis and not thesis.startswith("[待填写"):
+            questions.append(f"Which evidence most directly supports this thesis: {thesis}?")
+            questions.append(f"What mechanism links {topic} to the thesis claim?")
+            questions.append(f"What counterevidence or limitations should be addressed for {topic} under this thesis?")
+        else:
+            questions.extend([
+                f"What are the key aspects of {topic}?",
+                f"How does {topic} impact other areas?",
+                f"What are the latest findings on {topic}?"
+            ])
+
+        if section_hint:
+            questions.append(f"How should evidence on {topic} be positioned relative to the existing section {section_hint}?")
+
+        self.research_questions = questions[:4]
         return self.research_questions
 
     def retrieve_evidence(self, question: str, raw_dir: Optional[Path] = None, limit: int = 5) -> List[Dict[str, Any]]:
