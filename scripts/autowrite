@@ -449,6 +449,31 @@ def ensure_paper_md(slug):
     return md
 
 
+def route_section_title(topic, existing_titles, requested_title=None):
+    if requested_title and requested_title.strip():
+        return requested_title.strip()
+
+    topic_lower = (topic or "").lower()
+    existing_titles = existing_titles or []
+    routing_rules = [
+        (["finding", "evidence", "indicator", "service", "public service"], ["findings"]),
+        (["discussion", "implication", "limitation", "counterargument"], ["discussion"]),
+        (["method", "mechanism", "pathway"], ["methodology", "framework"]),
+        (["conclusion", "summary", "recommendation"], ["conclusion"]),
+        (["ecological", "governance", "development"], ["discussion", "findings"]),
+    ]
+
+    for topic_keys, title_keys in routing_rules:
+        if any(k in topic_lower for k in topic_keys):
+            for title in existing_titles:
+                title_lower = title.lower()
+                if any(k in title_lower for k in title_keys):
+                    return title
+
+    return "Agent Draft"
+
+
+
 def apply_latest_draft(section_title=None):
     paper_ctx = get_current_paper_context()
     if not paper_ctx:
@@ -462,12 +487,8 @@ def apply_latest_draft(section_title=None):
 
     paper_md = ensure_paper_md(paper_ctx["slug"])
     text = paper_md.read_text(encoding="utf-8")
-    title = section_title or draft_payload.get("section_title") or "Agent Draft"
     existing_titles = re.findall(r"^##\s+(.+)$", text, re.MULTILINE)
-    if title == "Agent Draft" and existing_titles:
-        preferred = [t for t in existing_titles if any(k in t.lower() for k in ["findings", "discussion", "conclusion", "methodology"])]
-        if preferred:
-            title = preferred[0]
+    title = route_section_title(draft_payload.get("source_research_topic") or draft_payload.get("section_title"), existing_titles, requested_title=section_title or draft_payload.get("section_title"))
     draft_body = draft_payload.get('draft', '').strip()
     pattern = re.compile(rf"(^##\s+{re.escape(title)}\s*$)(.*?)(?=^##\s+|\Z)", re.MULTILINE | re.DOTALL)
     match = pattern.search(text)
@@ -562,6 +583,8 @@ def score_current_paper():
     else:
         argument_chain = 0
 
+    thesis_alignment = critique_data.get("result", {}).get("scores", {}).get("thesis_alignment", 0)
+
     if argument_hint >= 3:
         counterargument = 3
     elif argument_hint >= 2:
@@ -579,6 +602,10 @@ def score_current_paper():
         clarity = 1
     else:
         clarity = 0
+
+    if thesis_alignment <= 0 and not (paper_ctx.get("frontmatter", {}).get("thesis", "").startswith("[待填写")):
+        argument_chain = max(argument_chain - 1, 0)
+        counterargument = max(counterargument - 1, 0)
 
     if edge_count >= 15:
         graph_coherence = 3
@@ -617,12 +644,13 @@ def score_current_paper():
             "validity_score": validity_score,
             "critique_present": latest_critique is not None,
             "validation_present": latest_validation is not None,
+            "thesis_alignment": thesis_alignment,
         },
         "rationale": {
             "evidence_grounding": f"node_count={node_count}",
             "citation_validity": f"validation_items={validation_items}, validity_score={validity_score}",
-            "argument_chain": f"heading_count={heading_count}, paragraph_count={paragraph_count}",
-            "counterargument": f"argument_hint={argument_hint}",
+            "argument_chain": f"heading_count={heading_count}, paragraph_count={paragraph_count}, thesis_alignment={thesis_alignment}",
+            "counterargument": f"argument_hint={argument_hint}, thesis_alignment={thesis_alignment}",
             "clarity": f"clarity_hint={clarity_hint}, paragraph_count={paragraph_count}",
             "graph_coherence": f"edge_count={edge_count}",
         },
