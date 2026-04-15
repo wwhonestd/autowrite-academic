@@ -630,7 +630,8 @@ def run_write(section_title=None):
     all_findings = []
     for item in research_payload.get("evidence", []):
         all_findings.extend(item.get("findings", []))
-    draft = writer.draft_section(section_title or research_payload.get("topic", "Research Draft"), all_findings)
+    thesis = paper_ctx.get("frontmatter", {}).get("thesis")
+    draft = writer.draft_section(section_title or research_payload.get("topic", "Research Draft"), all_findings, thesis=thesis)
 
     payload = {
         "paper": paper_ctx["slug"],

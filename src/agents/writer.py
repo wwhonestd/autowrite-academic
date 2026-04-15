@@ -9,19 +9,25 @@ class WriterAgent(BaseAgent):
         self.kg_handler = KnowledgeGraphHandler() # Placeholder
         self.current_paper_data: Dict[str, Any] = {}
 
-    def draft_section(self, topic: str, evidence: List[Dict[str, Any]]) -> str:
+    def draft_section(self, topic: str, evidence: List[Dict[str, Any]], thesis: str | None = None) -> str:
         print(f"Writer drafting section for topic: {topic}")
+        intro = f"This section discusses {topic}."
+        if thesis and thesis.strip() and not thesis.startswith("[待填写"):
+            intro += f" It is written in service of the thesis: {thesis.strip()}"
+
         if not evidence:
             return (
-                f"This section discusses {topic}. "
-                f"Current evidence is still limited, so this draft serves as a structural placeholder for later expansion."
+                intro + " Current evidence is still limited, so this draft serves as a structural placeholder for later expansion."
             )
 
-        lines = [f"This section discusses {topic}."]
+        lines = [intro]
         top_items = evidence[:3]
         for item in top_items:
             lines.append(f"Evidence from {item.get('source', 'unknown')} suggests that {item.get('claim', 'no claim')}.")
-        lines.append("Taken together, these materials indicate that the argument should be expanded with stronger citations and clearer causal links in a later iteration.")
+        if thesis and thesis.strip() and not thesis.startswith("[待填写"):
+            lines.append("These points should be explicitly tied back to the thesis in the next revision.")
+        else:
+            lines.append("The section still needs a stronger thesis anchor and clearer causal links in a later iteration.")
         return "\n\n".join(lines)
 
     def integrate_with_paper(self, section_content: str):
