@@ -636,17 +636,19 @@ scripts/autowrite switch another-paper
 
 ### Issue: Knowledge graph not updating
 
-**Solution:** Make sure raw/ files are committed.
+**Solution:** Make sure supported source files exist in `raw/` and are readable.
 
 ```bash
-git status raw/
-# If modified, commit them:
-git add raw/
-git commit -m "docs: update sources"
+ls raw/
 
 # Then sync:
 scripts/autowrite kb-sync
 ```
+
+Notes:
+- `raw/` user materials are local and ignored by git
+- built-in scanners currently read `.md` and `.txt`
+- PDF ingestion is not implemented yet
 
 ### Issue: "results.tsv" has odd formatting
 

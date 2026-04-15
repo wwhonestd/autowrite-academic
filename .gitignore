@@ -1,3 +1,5 @@
+raw/*
+!raw/.gitkeep
 .autowrite/
 *.pyc
 __pycache__/
